@@ -33,7 +33,7 @@ export default function Home() {
         </div>
 
         <h1 className="text-5xl md:text-7xl font-black text-white tracking-tight max-w-4xl z-10 leading-[1.1]">
-          Seu cardápio digital <span className="text-orange-500">Premium</span>.
+          Seu cardápio digital <span className="text-orange-500">Premium V2</span>.
         </h1>
         
         <p className="text-gray-400 text-lg md:text-xl mt-6 max-w-2xl z-10">
