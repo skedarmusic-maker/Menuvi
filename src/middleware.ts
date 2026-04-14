@@ -29,46 +29,49 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
   const isLoginPage = pathname === '/login';
-  const isAdminPage = pathname.startsWith('/admin') && !isLoginPage;
+  const isAdminPage = pathname.startsWith('/admin');
   const isSuperAdminPage = pathname.startsWith('/superadmin');
 
-  if (isSuperAdminPage) {
-    if (!user) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      return NextResponse.redirect(url);
-    }
-    // Verifica se o email está na tabela super_admins
-    const { data: superAdmin } = await supabase
-      .from('super_admins')
-      .select('id')
-      .eq('email', user.email)
-      .single();
-      
-    if (!superAdmin) {
-      const url = request.nextUrl.clone();
-      url.pathname = '/admin';
-      return NextResponse.redirect(url);
-    }
-  }
-
-  if (isAdminPage && !user) {
+  // 1. Se estiver tentando entrar no SuperAdmin ou Admin e não estiver logado -> Login
+  if ((isSuperAdminPage || isAdminPage) && !user) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  if (isLoginPage && user) {
-    // Se for o super admin acessando login, jogue pro superadmin
+  // 2. Se estiver logado, verificar se é Super Admin
+  let isMaster = false;
+  if (user) {
     const { data: superAdmin } = await supabase
       .from('super_admins')
       .select('id')
       .eq('email', user.email)
       .single();
+    if (superAdmin) isMaster = true;
+  }
 
-    const url = request.nextUrl.clone();
-    url.pathname = superAdmin ? '/superadmin' : '/admin';
-    return NextResponse.redirect(url);
+  // 3. Regras de redirecionamento para Logados
+  if (user) {
+    // Se logado e no login -> Redirecionar para o painel correto
+    if (isLoginPage) {
+      const url = request.nextUrl.clone();
+      url.pathname = isMaster ? '/superadmin' : '/admin';
+      return NextResponse.redirect(url);
+    }
+
+    // Se Super Admin tentando entrar no /admin -> Manda pro /superadmin
+    if (isAdminPage && isMaster) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/superadmin';
+      return NextResponse.redirect(url);
+    }
+
+    // Se Lojista comum tentando entrar no /superadmin -> Manda pro /admin
+    if (isSuperAdminPage && !isMaster) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/admin';
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;
@@ -77,4 +80,5 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ['/admin/:path*', '/login', '/superadmin/:path*'],
 };
+
 

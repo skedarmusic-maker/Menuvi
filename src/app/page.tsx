@@ -45,9 +45,9 @@ export default function Home() {
             href="/login"
             className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold px-8 py-4 rounded-xl hover:scale-105 transition-transform shadow-xl shadow-orange-500/20"
           >
-            Criar meu cardápio grátis <ArrowRight className="w-5 h-5" />
+            Acessar meu cardápio agora <ArrowRight className="w-5 h-5" />
           </Link>
-          <p className="text-gray-500 text-sm sm:hidden mt-2">Menos de 2 minutos para configurar.</p>
+          <p className="text-gray-500 text-sm mt-4">Bem-vindo à nova era da gestão de delivery.</p>
         </div>
       </div>
     </main>
