@@ -17,21 +17,30 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
     
-    if (error) {
-      setError(error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : error.message);
+    if (authError) {
+      setError(authError.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : authError.message);
       setLoading(false);
       return;
     }
 
     if (data.user) {
-      // Forçar refresh para o middleware agir
+      // Verifica se é Super Admin para decidir a rota
+      const { data: isMaster } = await supabase
+        .from('super_admins')
+        .select('id')
+        .eq('email', data.user.email)
+        .single();
+
       router.refresh();
-      // Pequeno delay para garantir que o cookie foi setado antes de empurrar a rota
-      setTimeout(() => {
+      
+      // Empurra para a rota correta imediatamente
+      if (isMaster) {
+        router.push('/superadmin');
+      } else {
         router.push('/admin');
-      }, 500);
+      }
     }
   };
 
