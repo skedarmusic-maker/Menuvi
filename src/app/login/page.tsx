@@ -17,14 +17,22 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    
     if (error) {
-      setError('E-mail ou senha incorretos.');
-    } else {
-      router.push('/admin');
-      router.refresh();
+      setError(error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : error.message);
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    if (data.user) {
+      // Forçar refresh para o middleware agir
+      router.refresh();
+      // Pequeno delay para garantir que o cookie foi setado antes de empurrar a rota
+      setTimeout(() => {
+        router.push('/admin');
+      }, 500);
+    }
   };
 
   return (
