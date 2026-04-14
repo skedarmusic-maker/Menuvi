@@ -46,7 +46,7 @@ export async function middleware(request: NextRequest) {
       .from('super_admins')
       .select('id')
       .eq('email', user.email)
-      .single();
+      .maybeSingle();
     if (superAdmin) isMaster = true;
   }
 

@@ -48,6 +48,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, message: 'Loja provisionada com sucesso!' });
   } catch (err: any) {
-    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+    console.error('PROVISION_ERROR:', err);
+    return NextResponse.json({ error: err.message || 'Server error' }, { status: 500 });
   }
 }

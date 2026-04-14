@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-client';
 import { useRouter } from 'next/navigation';
 import { UtensilsCrossed, Eye, EyeOff, Loader2 } from 'lucide-react';
 
@@ -17,30 +17,38 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    
-    if (authError) {
-      setError(authError.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : authError.message);
-      setLoading(false);
-      return;
-    }
 
-    if (data.user) {
-      // Verifica se é Super Admin para decidir a rota
-      const { data: isMaster } = await supabase
-        .from('super_admins')
-        .select('id')
-        .eq('email', data.user.email)
-        .single();
+    const supabase = createSupabaseBrowserClient();
 
-      router.refresh();
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password });
       
-      // Empurra para a rota correta imediatamente
-      if (isMaster) {
-        router.push('/superadmin');
-      } else {
-        router.push('/admin');
+      if (authError) {
+        setError(authError.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : authError.message);
+        setLoading(false);
+        return;
       }
+
+      if (data.user) {
+        // Verifica se é Super Admin para decidir a rota
+        const { data: isMaster, error: masterError } = await supabase
+          .from('super_admins')
+          .select('id')
+          .eq('email', data.user.email)
+          .maybeSingle();
+
+        router.refresh(); // Atualiza cookies na sessão
+
+        // Empurra para a rota correta imediatamente
+        if (isMaster) {
+          router.push('/superadmin');
+        } else {
+          router.push('/admin');
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || 'Erro inesperado.');
+      setLoading(false);
     }
   };
 

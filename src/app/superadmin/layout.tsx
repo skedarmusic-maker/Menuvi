@@ -14,7 +14,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
     .from('super_admins')
     .select('id')
     .eq('email', user.email)
-    .single();
+    .maybeSingle();
 
   if (!superAdmin) redirect('/admin');
 

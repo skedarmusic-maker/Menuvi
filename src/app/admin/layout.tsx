@@ -13,7 +13,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .from('restaurants')
     .select('*')
     .eq('user_id', user.id)
-    .single();
+    .maybeSingle();
 
   if (!restaurant) redirect('/login');
 
