@@ -108,3 +108,43 @@ create policy "Owner can manage order items" on public.order_items
       where orders.id = order_items.order_id and restaurants.user_id = auth.uid()
     )
   );
+
+-- SUPABASE SCHEMA ATUALIZACAO: SUPER ADMIN E ASSINATURAS
+
+-- 1. Tabela Super Admins
+create table public.super_admins (
+    id uuid default gen_random_uuid() primary key,
+    email text unique not null,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Insere o Super Admin Principal
+insert into public.super_admins (email) values ('focus.earts@gmail.com');
+
+-- 2. Alterar restaurantes para ter controle de assinatura
+alter table public.restaurants 
+add column if not exists plan_status text default 'trial',
+add column if not exists expires_at timestamp with time zone default (now() + interval '7 days'),
+add column if not exists is_active boolean default true;
+
+-- Adiciona politica para permitir Super Admins ler tudo
+create policy "SuperAdmin can manage all restaurants" on public.restaurants
+  for all using (
+    exists (select 1 from public.super_admins where email = auth.jwt() ->> 'email')
+  );
+
+create policy "SuperAdmin can manage all categories" on public.categories
+  for all using (
+    exists (select 1 from public.super_admins where email = auth.jwt() ->> 'email')
+  );
+
+create policy "SuperAdmin can manage all products" on public.products
+  for all using (
+    exists (select 1 from public.super_admins where email = auth.jwt() ->> 'email')
+  );
+
+create policy "SuperAdmin can manage all orders" on public.orders
+  for all using (
+    exists (select 1 from public.super_admins where email = auth.jwt() ->> 'email')
+  );
+

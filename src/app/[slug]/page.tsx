@@ -65,6 +65,18 @@ export default async function StorePage({
   const { slug } = await params;
   const store = await getStoreData(slug);
 
+  if (!store.is_active) {
+    return (
+      <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 text-center">
+        <div className="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mb-4">
+          <Clock className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Loja Indisponível</h1>
+        <p className="text-gray-500 max-w-sm mb-8">Este cardápio encontra-se temporariamente fora do ar. Volte mais tarde!</p>
+      </main>
+    );
+  }
+
   return (
     <main className="relative pb-24">
       {/* HEADER PREMIUM COM BANNER */}

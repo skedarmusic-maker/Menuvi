@@ -30,6 +30,27 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isLoginPage = pathname === '/login';
   const isAdminPage = pathname.startsWith('/admin') && !isLoginPage;
+  const isSuperAdminPage = pathname.startsWith('/superadmin');
+
+  if (isSuperAdminPage) {
+    if (!user) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+    // Verifica se o email está na tabela super_admins
+    const { data: superAdmin } = await supabase
+      .from('super_admins')
+      .select('id')
+      .eq('email', user.email)
+      .single();
+      
+    if (!superAdmin) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/admin';
+      return NextResponse.redirect(url);
+    }
+  }
 
   if (isAdminPage && !user) {
     const url = request.nextUrl.clone();
@@ -38,8 +59,15 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isLoginPage && user) {
+    // Se for o super admin acessando login, jogue pro superadmin
+    const { data: superAdmin } = await supabase
+      .from('super_admins')
+      .select('id')
+      .eq('email', user.email)
+      .single();
+
     const url = request.nextUrl.clone();
-    url.pathname = '/admin';
+    url.pathname = superAdmin ? '/superadmin' : '/admin';
     return NextResponse.redirect(url);
   }
 
@@ -47,5 +75,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/login'],
+  matcher: ['/admin/:path*', '/login', '/superadmin/:path*'],
 };
+
