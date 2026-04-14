@@ -5,7 +5,7 @@ import SettingsForm from '@/components/admin/SettingsForm';
 export default async function AdminSettingsPage() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/admin/login');
+  if (!user) redirect('/login');
 
   const { data: restaurant } = await supabase
     .from('restaurants')
@@ -13,7 +13,7 @@ export default async function AdminSettingsPage() {
     .eq('user_id', user.id)
     .single();
 
-  if (!restaurant) redirect('/admin/login');
+  if (!restaurant) redirect('/login');
 
   return (
     <div className="p-8">

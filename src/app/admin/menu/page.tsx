@@ -5,7 +5,7 @@ import MenuManager from '@/components/admin/MenuManager';
 export default async function AdminMenuPage() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/admin/login');
+  if (!user) redirect('/login');
 
   // Buscar Restaurante
   const { data: restaurant } = await supabase
@@ -14,7 +14,7 @@ export default async function AdminMenuPage() {
     .eq('user_id', user.id)
     .single();
 
-  if (!restaurant) redirect('/admin/login');
+  if (!restaurant) redirect('/login');
 
   // Buscar Categorias e Produtos
   const { data: categories } = await supabase

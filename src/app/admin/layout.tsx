@@ -6,7 +6,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) redirect('/admin/login');
+  if (!user) redirect('/login');
 
   // Busca dados do restaurante vinculado ao usuário logado
   const { data: restaurant } = await supabase
@@ -15,7 +15,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .eq('user_id', user.id)
     .single();
 
-  if (!restaurant) redirect('/admin/login');
+  if (!restaurant) redirect('/login');
 
   return (
     <div className="min-h-screen bg-gray-950 flex">

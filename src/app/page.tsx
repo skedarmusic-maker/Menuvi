@@ -14,7 +14,7 @@ export default function Home() {
             <span className="text-xl font-black text-white tracking-tight">Menuvi</span>
           </div>
           <Link 
-            href="/admin/login"
+            href="/login"
             className="text-sm font-bold text-white bg-gray-800 hover:bg-gray-700 px-6 py-2.5 rounded-full transition-colors"
           >
             Acessar Painel
@@ -42,7 +42,7 @@ export default function Home() {
 
         <div className="mt-10 flex flex-col sm:flex-row items-center gap-4 z-10">
           <Link 
-            href="/admin/login"
+            href="/login"
             className="flex items-center gap-2 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold px-8 py-4 rounded-xl hover:scale-105 transition-transform shadow-xl shadow-orange-500/20"
           >
             Criar meu cardápio grátis <ArrowRight className="w-5 h-5" />

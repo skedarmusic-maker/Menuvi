@@ -6,7 +6,7 @@ import { ShoppingBag, TrendingUp, Clock, CheckCircle } from 'lucide-react';
 export default async function AdminDashboardPage() {
   const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect('/admin/login');
+  if (!user) redirect('/login');
 
   const { data: restaurant } = await supabase
     .from('restaurants')
@@ -14,7 +14,7 @@ export default async function AdminDashboardPage() {
     .eq('user_id', user.id)
     .single();
 
-  if (!restaurant) redirect('/admin/login');
+  if (!restaurant) redirect('/login');
 
   // Busca pedidos de hoje com itens e produtos
   const today = new Date();

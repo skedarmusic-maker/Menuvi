@@ -26,7 +26,7 @@ export default function AdminSidebar({ restaurant }: { restaurant: any }) {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push('/admin/login');
+    router.push('/login');
     router.refresh();
   };
 
