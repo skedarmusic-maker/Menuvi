@@ -49,6 +49,7 @@ const NEXT_STATUS: Record<string, OrderStatus> = {
 
 export default function OrdersKanban({ initialOrders }: { initialOrders: Order[] }) {
   const router = useRouter();
+  const supabase = createSupabaseBrowserClient();
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [drivers, setDrivers] = useState<any[]>([]);
@@ -71,7 +72,7 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'orders' },
-        async (payload) => {
+        async (payload: any) => {
           console.log('🔔 Novo pedido recebido via Realtime:', payload.new);
           
           // Busca os itens do pedido que acabou de chegar
@@ -94,7 +95,7 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'orders' },
-        (payload) => {
+        (payload: any) => {
           setOrders((prev) => 
             prev.map(o => o.id === payload.new.id ? { ...o, ...payload.new } : o)
           );
