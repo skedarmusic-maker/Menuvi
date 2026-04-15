@@ -14,7 +14,7 @@ import {
   Clock,
   Printer
 } from 'lucide-react';
-import AnalyticsCharts from '@/components/admin/AnalyticsCharts';
+// import AnalyticsCharts from '@/components/admin/AnalyticsCharts';
 
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const params = await searchParams;
@@ -126,12 +126,13 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         />
       </div>
 
-      {/* Seção de Inteligência / Gráficos */}
+      {/* Gráficos comentados para teste de 503 
       <AnalyticsCharts 
         hourlyData={hourlyData} 
         weeklyData={weeklyData} 
         themeColor={restaurant.theme_color || '#f97316'} 
       />
+      */}
 
       {/* Tabela de Histórico */}
       <div className="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden">
