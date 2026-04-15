@@ -13,6 +13,8 @@ interface Product {
   description: string;
   price: number;
   image_url: string | null;
+  is_promo?: boolean;
+  promo_price?: number;
   variants?: { name: string; price: number }[];
 }
 
@@ -35,7 +37,10 @@ export default function ProductList({ store, products, categories }: { store: an
 
   const confirmAdd = () => {
     if (selectedProduct) {
-      const finalPrice = selectedVariant ? selectedVariant.price : selectedProduct.price;
+      const finalPrice = selectedProduct.is_promo && selectedProduct.promo_price 
+        ? selectedProduct.promo_price 
+        : (selectedVariant ? selectedVariant.price : selectedProduct.price);
+      
       const finalName = selectedVariant ? `${selectedProduct.name} (${selectedVariant.name})` : selectedProduct.name;
       
       addToCart({
@@ -100,14 +105,27 @@ export default function ProductList({ store, products, categories }: { store: an
                       {product.description && (
                         <p className="text-gray-500 text-sm mt-1 line-clamp-2 leading-snug">{product.description}</p>
                       )}
-                      <div className="mt-2 font-bold text-gray-900 flex items-center gap-1">
-                        {product.variants && product.variants.length > 0 && (
-                          <span className="text-[10px] uppercase text-gray-400 font-bold border border-gray-100 px-1.5 py-0.5 rounded-md">A partir de</span>
-                        )}
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                          product.variants && product.variants.length > 0 
-                            ? Math.min(...product.variants.map(v => v.price))
-                            : product.price
+                      <div className="mt-2 font-bold text-gray-900 flex items-center gap-2">
+                        {product.is_promo && product.promo_price ? (
+                          <>
+                            <span className="text-orange-500 text-lg">
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.promo_price)}
+                            </span>
+                            <span className="text-gray-400 text-xs line-through font-normal">
+                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            {product.variants && product.variants.length > 0 && (
+                              <span className="text-[10px] uppercase text-gray-400 font-bold border border-gray-100 px-1.5 py-0.5 rounded-md">A partir de</span>
+                            )}
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                              product.variants && product.variants.length > 0 
+                                ? Math.min(...product.variants.map(v => v.price))
+                                : product.price
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -121,6 +139,11 @@ export default function ProductList({ store, products, categories }: { store: an
                              style={{ backgroundColor: store.theme_color }}>
                           <Plus className="w-5 h-5" />
                         </div>
+                        {product.is_promo && (
+                          <div className="absolute top-2 left-2 bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-lg border border-white/20 animate-pulse">
+                            OFERTA
+                          </div>
+                        )}
                      </div>
                   </div>
                 ))}
@@ -210,7 +233,7 @@ export default function ProductList({ store, products, categories }: { store: an
                   style={{ backgroundColor: store.theme_color }}
                 >
                   Adicionar • {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                    (selectedVariant ? selectedVariant.price : selectedProduct.price) * quantity
+                    (selectedProduct.is_promo && selectedProduct.promo_price ? selectedProduct.promo_price : (selectedVariant ? selectedVariant.price : selectedProduct.price)) * quantity
                   )}
                 </button>
               </div>

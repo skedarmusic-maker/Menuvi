@@ -6,7 +6,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase-client';
 import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, Loader2, ImagePlus, X, Tag } from 'lucide-react';
 
 interface Category { id: string; name: string; order_index: number; restaurant_id: string; }
-interface Product { id: string; category_id: string; name: string; description: string; price: number; image_url: string | null; is_active: boolean; is_featured: boolean; }
+interface Product { id: string; category_id: string; name: string; description: string; price: number; image_url: string | null; is_active: boolean; is_featured: boolean; is_promo?: boolean; promo_price?: number; variants?: any[]; }
 
 export default function MenuManager({
   restaurantId,
@@ -259,6 +259,8 @@ function ProductModal({ editing, onSave, onClose }: { editing: Product | null; o
   const [variants, setVariants] = useState<{ name: string; price: string }[]>(
     editing?.variants?.map(v => ({ name: v.name, price: v.price.toString() })) ?? []
   );
+  const [isPromo, setIsPromo] = useState(editing?.is_promo ?? false);
+  const [promoPrice, setPromoPrice] = useState(editing?.promo_price?.toString() ?? '');
   const [loading, setLoading] = useState(false);
 
   const addVariant = () => setVariants([...variants, { name: '', price: '' }]);
@@ -299,6 +301,8 @@ function ProductModal({ editing, onSave, onClose }: { editing: Product | null; o
       imageFile: imageFile ?? undefined, 
       is_active: true, 
       is_featured: false,
+      is_promo: isPromo,
+      promo_price: isPromo ? parseFloat(promoPrice.replace(',', '.')) : null,
       variants: processedVariants
     });
     setLoading(false);
@@ -371,6 +375,42 @@ function ProductModal({ editing, onSave, onClose }: { editing: Product | null; o
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">R$</span>
               <input type="text" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0,00" className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-all placeholder:text-gray-600" />
+            </div>
+          )}
+            </div>
+          )}
+        </div>
+
+        {/* Toggle Promoção */}
+        <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Tag className="w-4 h-4 text-orange-500" />
+              <span className="text-sm font-bold text-orange-400">Produto em Promoção?</span>
+            </div>
+            <button 
+              type="button"
+              onClick={() => setIsPromo(!isPromo)}
+              className={`w-12 h-6 rounded-full transition-all relative ${isPromo ? 'bg-orange-500' : 'bg-gray-700'}`}
+            >
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isPromo ? 'left-7' : 'left-1'}`} />
+            </button>
+          </div>
+          
+          {isPromo && (
+            <div className="animate-in fade-in zoom-in-95">
+              <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest block mb-2">Preço Promocional (O que o cliente paga)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-500 font-black">R$</span>
+                <input 
+                  type="text" 
+                  inputMode="decimal" 
+                  value={promoPrice} 
+                  onChange={(e) => setPromoPrice(e.target.value)} 
+                  placeholder="0,00" 
+                  className="w-full bg-gray-950 border border-orange-500/30 rounded-xl pl-12 pr-4 py-3 text-orange-400 font-black focus:outline-none focus:border-orange-500 transition-all placeholder:text-gray-800"
+                />
+              </div>
             </div>
           )}
         </div>

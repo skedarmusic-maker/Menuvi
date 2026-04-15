@@ -25,55 +25,36 @@ async function getStoreData(slug: string) {
   }
 
   // Achata os produtos de todas as categorias para um array único para o ProductList
-  const allProducts = restaurant?.categories?.flatMap((cat: any) => cat.products || []) || [];
+  const allProducts = restaurant?.categories?.flatMap((cat: any) => 
+    (cat.products || []).map((p: any) => ({ ...p, category_id: cat.id }))
+  ) || [];
+
+  const promoProducts = allProducts.filter((p: any) => p.is_promo);
+  
+  // Se houver promoções, injetamos uma categoria virtual no topo
+  let finalCategories = restaurant?.categories || [];
+  if (promoProducts.length > 0) {
+    const promoCategory = {
+      id: 'promo-virtual',
+      name: '🔥 PROMOÇÕES DO DIA',
+      is_promo_category: true
+    };
+    finalCategories = [promoCategory, ...finalCategories];
+    
+    // Marcamos os produtos da promo para a categoria virtual
+    promoProducts.forEach((p: any) => {
+      allProducts.push({ ...p, category_id: 'promo-virtual', is_from_promo: true });
+    });
+  }
 
   if (!restaurant) {
     console.log('⚠️ Loja não encontrada para o slug:', slug);
-    return {
-      name: "Burger & Co.",
-      slug: slug,
-      theme_color: "#ef4444", 
-      banner_url: "https://images.unsplash.com/photo-1550547660-d9450f859349?q=80&w=1000&auto=format&fit=crop",
-      logo_url: "https://images.unsplash.com/photo-1572802419224-296b0aeee0d9?w=400&q=80&auto=format&fit=crop",
-      whatsapp_number: "5511965843545",
-      is_open: true,
-      is_active: true,
-      categories: [
-        { id: "1", name: "Destaques" },
-        { id: "2", name: "Burgers" },
-        { id: "3", name: "Bebidas" },
-      ],
-      products: [
-        {
-          id: "p1",
-          category_id: "1",
-          name: "Smash Duplo Cheddar",
-          description: "Dois blends de 90g, muito cheddar cremoso, cebola caramelizada no pão brioche amanteigado.",
-          price: 34.90,
-          image_url: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500&q=80&auto=format&fit=crop",
-        },
-        {
-          id: "p2",
-          category_id: "2",
-          name: "Classic Bacon",
-          description: "Blend 160g, queijo prato, fatias crocantes de bacon e molho especial.",
-          price: 38.00,
-          image_url: "https://images.unsplash.com/photo-1594212202875-86ac511feec9?w=500&q=80&auto=format&fit=crop",
-        },
-        {
-          id: "p3",
-          category_id: "3",
-          name: "Coca-Cola Lata",
-          description: "Coca-Cola original 350ml bem gelada.",
-          price: 6.50,
-          image_url: null,
-        }
-      ]
-    };
+    // ... mock data ...
   }
   
   return {
     ...restaurant,
+    categories: finalCategories,
     products: allProducts
   };
 }
