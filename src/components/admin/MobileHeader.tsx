@@ -1,11 +1,18 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { ExternalLink, Share2 } from 'lucide-react';
 
 export default function MobileHeader({ restaurant }: { restaurant: any }) {
-  const shareLink = `${window.location.origin}/${restaurant.slug}`;
+  const [shareLink, setShareLink] = useState('');
+
+  useEffect(() => {
+    setShareLink(`${window.location.origin}/${restaurant.slug}`);
+  }, [restaurant.slug]);
 
   const handleShare = async () => {
+    if (!shareLink) return;
+    
     if (navigator.share) {
       try {
         await navigator.share({

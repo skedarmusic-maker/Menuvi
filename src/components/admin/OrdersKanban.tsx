@@ -31,6 +31,7 @@ interface Order {
   payment_method: string;
   status: OrderStatus;
   created_at: string;
+  pix_confirmed: boolean;
   order_items: OrderItem[];
 }
 
@@ -53,6 +54,19 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
     if (!error) {
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+      );
+    }
+  };
+
+  const togglePix = async (orderId: string, current: boolean) => {
+    const { error } = await supabase
+      .from('orders')
+      .update({ pix_confirmed: !current })
+      .eq('id', orderId);
+
+    if (!error) {
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, pix_confirmed: !current } : o))
       );
     }
   };
@@ -90,6 +104,7 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
                   order={order}
                   isExpanded={expandedId === order.id}
                   onToggle={() => setExpandedId(expandedId === order.id ? null : order.id)}
+                  onTogglePix={() => togglePix(order.id, order.pix_confirmed)}
                   onAdvance={() => NEXT_STATUS[order.status] && updateStatus(order.id, NEXT_STATUS[order.status])}
                   onCancel={() => updateStatus(order.id, 'canceled')}
                 />
@@ -102,10 +117,11 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
   );
 }
 
-function OrderCard({ order, isExpanded, onToggle, onAdvance, onCancel }: {
+function OrderCard({ order, isExpanded, onToggle, onTogglePix, onAdvance, onCancel }: {
   order: Order;
   isExpanded: boolean;
   onToggle: () => void;
+  onTogglePix: () => void;
   onAdvance: () => void;
   onCancel: () => void;
 }) {
@@ -130,6 +146,11 @@ function OrderCard({ order, isExpanded, onToggle, onAdvance, onCancel }: {
               <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${config.bg} ${config.color}`}>
                 {order.payment_method.toUpperCase()}
               </span>
+              {order.payment_method === 'pix' && (
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${order.pix_confirmed ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400 animate-pulse'}`}>
+                  {order.pix_confirmed ? 'PIX RECEBIDO' : 'AGUARDANDO PIX'}
+                </span>
+              )}
             </div>
             <p className="text-white font-bold text-sm truncate">{order.customer_name}</p>
             <p className="text-orange-400 font-black mt-1">
@@ -183,21 +204,33 @@ function OrderCard({ order, isExpanded, onToggle, onAdvance, onCancel }: {
 
           {/* Ações */}
           {order.status !== 'finished' && order.status !== 'canceled' && (
-            <div className="flex gap-2 pt-1">
-              {canAdvance && (
+            <div className="flex flex-col gap-2 pt-1">
+              {order.payment_method === 'pix' && order.status === 'new' && (
                 <button
-                  onClick={onAdvance}
-                  className="flex-1 bg-orange-500 hover:bg-orange-400 text-white text-xs font-bold py-2.5 rounded-xl transition-colors"
+                  onClick={onTogglePix}
+                  className={`w-full text-xs font-bold py-2.5 rounded-xl transition-all border ${order.pix_confirmed ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-blue-500 hover:bg-blue-400 text-white shadow-lg shadow-blue-500/20'}`}
                 >
-                  {NEXT_LABEL[order.status]}
+                  {order.pix_confirmed ? '✓ PIX Confirmado' : '💰 Confirmar Recebimento PIX'}
                 </button>
               )}
-              <button
-                onClick={onCancel}
-                className="px-3 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold rounded-xl transition-colors border border-red-500/20"
-              >
-                <XCircle className="w-4 h-4" />
-              </button>
+
+              <div className="flex gap-2">
+                {canAdvance && (
+                  <button
+                    onClick={onAdvance}
+                    disabled={order.payment_method === 'pix' && !order.pix_confirmed && order.status === 'new'}
+                    className="flex-1 bg-orange-500 hover:bg-orange-400 disabled:opacity-30 disabled:bg-gray-800 disabled:text-gray-600 text-white text-xs font-bold py-2.5 rounded-xl transition-colors"
+                  >
+                    {order.payment_method === 'pix' && !order.pix_confirmed && order.status === 'new' ? 'Aguardando Pagamento...' : NEXT_LABEL[order.status]}
+                  </button>
+                )}
+                <button
+                  onClick={onCancel}
+                  className="px-3 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-bold rounded-xl transition-colors border border-red-500/20"
+                >
+                  <XCircle className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           )}
         </div>
