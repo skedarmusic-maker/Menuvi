@@ -38,20 +38,20 @@ export default async function AdminDashboardPage() {
   const pending = allOrders.filter((o) => ['new', 'accepted'].includes(o.status)).length;
 
   return (
-    <div className="p-8">
+    <div className="p-4 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-black text-white">Pedidos do Dia</h1>
-        <p className="text-gray-500 text-sm mt-1">
+      <div className="mb-6 lg:mb-8">
+        <h1 className="text-xl lg:text-2xl font-black text-white">Pedidos do Dia</h1>
+        <p className="text-gray-500 text-xs lg:text-sm mt-1">
           {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
       </div>
 
       {/* Cards de métricas */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-8">
         <MetricCard
           icon={<ShoppingBag className="w-5 h-5" />}
-          label="Total de Pedidos"
+          label="Total"
           value={totalToday}
           color="text-blue-400"
           bg="bg-blue-500/10 border-blue-500/20"
@@ -65,15 +65,15 @@ export default async function AdminDashboardPage() {
         />
         <MetricCard
           icon={<CheckCircle className="w-5 h-5" />}
-          label="Finalizados"
+          label="Finais"
           value={finishedToday}
           color="text-green-400"
           bg="bg-green-500/10 border-green-500/20"
         />
         <MetricCard
           icon={<TrendingUp className="w-5 h-5" />}
-          label="Faturamento"
-          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(revenueToday)}
+          label="Faturado"
+          value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(revenueToday)}
           color="text-purple-400"
           bg="bg-purple-500/10 border-purple-500/20"
           isText
@@ -95,12 +95,12 @@ function MetricCard({ icon, label, value, color, bg, isText = false }: {
   isText?: boolean;
 }) {
   return (
-    <div className={`bg-gray-900 border rounded-2xl p-5 border-gray-800`}>
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${bg} ${color} mb-4`}>
+    <div className={`bg-gray-900 border rounded-2xl p-4 border-gray-800`}>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${bg} ${color} mb-3`}>
         {icon}
       </div>
-      <p className="text-gray-500 text-xs font-medium">{label}</p>
-      <p className={`font-black mt-1 ${color} ${isText ? 'text-lg' : 'text-3xl'}`}>{value}</p>
+      <p className="text-gray-500 text-[10px] font-bold uppercase tracking-wider">{label}</p>
+      <p className={`font-black mt-1 ${color} ${isText ? 'text-base' : 'text-2xl'}`}>{value}</p>
     </div>
   );
 }
