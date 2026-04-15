@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-client';
 import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, Loader2, ImagePlus, X, Tag } from 'lucide-react';
 
 interface Category { id: string; name: string; order_index: number; restaurant_id: string; }
@@ -17,6 +17,7 @@ export default function MenuManager({
   initialCategories: Category[];
   initialProducts: Product[];
 }) {
+  const supabase = createSupabaseBrowserClient();
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [openCat, setOpenCat] = useState<string | null>(initialCategories[0]?.id ?? null);
@@ -29,57 +30,84 @@ export default function MenuManager({
 
   // ───────── CATEGORIAS ─────────
   const saveCategory = async (name: string) => {
-    if (catModal.editing) {
-      const { data } = await supabase.from('categories').update({ name }).eq('id', catModal.editing.id).select().single();
-      if (data) setCategories((prev) => prev.map((c) => (c.id === data.id ? data : c)));
-    } else {
-      const { data } = await supabase.from('categories').insert({ name, restaurant_id: restaurantId, order_index: categories.length }).select().single();
-      if (data) setCategories((prev) => [...prev, data]);
+    try {
+      if (catModal.editing) {
+        const { data, error } = await supabase.from('categories').update({ name }).eq('id', catModal.editing.id).select().single();
+        if (error) throw error;
+        if (data) setCategories((prev) => prev.map((c) => (c.id === data.id ? data : c)));
+      } else {
+        const { data, error } = await supabase.from('categories').insert({ name, restaurant_id: restaurantId, order_index: categories.length }).select().single();
+        if (error) throw error;
+        if (data) setCategories((prev) => [...prev, data]);
+      }
+      setCatModal({ open: false, editing: null });
+    } catch (err: any) {
+      alert('Erro ao salvar categoria: ' + (err.message || 'Erro desconhecido'));
+      console.error(err);
     }
-    setCatModal({ open: false, editing: null });
   };
 
   const deleteCategory = async (id: string) => {
     if (!confirm('Deletar categoria e todos os seus produtos?')) return;
-    await supabase.from('categories').delete().eq('id', id);
-    setCategories((prev) => prev.filter((c) => c.id !== id));
-    setProducts((prev) => prev.filter((p) => p.category_id !== id));
+    try {
+      const { error } = await supabase.from('categories').delete().eq('id', id);
+      if (error) throw error;
+      setCategories((prev) => prev.filter((c) => c.id !== id));
+      setProducts((prev) => prev.filter((p) => p.category_id !== id));
+    } catch (err: any) {
+      alert('Erro ao deletar categoria: ' + err.message);
+    }
   };
 
   // ───────── PRODUTOS ─────────
   const saveProduct = async (data: Partial<Product> & { imageFile?: File }) => {
-    const { imageFile, ...rest } = data;
-    let image_url = rest.image_url ?? null;
+    try {
+      const { imageFile, ...rest } = data;
+      let image_url = rest.image_url ?? null;
 
-    if (imageFile) {
-      const ext = imageFile.name.split('.').pop();
-      const path = `products/${Date.now()}.${ext}`;
-      const { error: uploadError } = await supabase.storage.from('menuvi-public').upload(path, imageFile, { upsert: true });
-      if (!uploadError) {
+      if (imageFile) {
+        const ext = imageFile.name.split('.').pop();
+        const path = `products/${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from('menuvi-public').upload(path, imageFile, { upsert: true });
+        if (uploadError) throw uploadError;
         const { data: urlData } = supabase.storage.from('menuvi-public').getPublicUrl(path);
         image_url = urlData.publicUrl;
       }
-    }
 
-    if (productModal.editing) {
-      const { data: updated } = await supabase.from('products').update({ ...rest, image_url }).eq('id', productModal.editing.id).select().single();
-      if (updated) setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-    } else {
-      const { data: created } = await supabase.from('products').insert({ ...rest, image_url, category_id: productModal.categoryId }).select().single();
-      if (created) setProducts((prev) => [created, ...prev]);
+      if (productModal.editing) {
+        const { data: updated, error } = await supabase.from('products').update({ ...rest, image_url }).eq('id', productModal.editing.id).select().single();
+        if (error) throw error;
+        if (updated) setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+      } else {
+        const { data: created, error } = await supabase.from('products').insert({ ...rest, image_url, category_id: productModal.categoryId }).select().single();
+        if (error) throw error;
+        if (created) setProducts((prev) => [created, ...prev]);
+      }
+      setProductModal({ open: false, editing: null, categoryId: '' });
+    } catch (err: any) {
+      alert('Erro ao salvar produto: ' + err.message);
     }
-    setProductModal({ open: false, editing: null, categoryId: '' });
   };
 
   const deleteProduct = async (id: string) => {
     if (!confirm('Deletar este produto?')) return;
-    await supabase.from('products').delete().eq('id', id);
-    setProducts((prev) => prev.filter((p) => p.id !== id));
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      if (error) throw error;
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+    } catch (err: any) {
+      alert('Erro ao deletar produto: ' + err.message);
+    }
   };
 
   const toggleActive = async (product: Product) => {
-    await supabase.from('products').update({ is_active: !product.is_active }).eq('id', product.id);
-    setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, is_active: !p.is_active } : p)));
+    try {
+      const { error } = await supabase.from('products').update({ is_active: !product.is_active }).eq('id', product.id);
+      if (error) throw error;
+      setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, is_active: !p.is_active } : p)));
+    } catch (err: any) {
+      alert('Erro ao alterar status: ' + err.message);
+    }
   };
 
   return (
