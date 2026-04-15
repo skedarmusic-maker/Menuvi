@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Clock, User, MapPin, Package, Truck, CheckCircle, XCircle, ChevronDown, MessageCircle } from 'lucide-react';
+import { createSupabaseBrowserClient } from '@/lib/supabase-client';
+import { Clock, User, MapPin, Package, Truck, CheckCircle, XCircle, ChevronDown, MessageCircle, Paperclip, Eye, Upload, Loader2, FileText } from 'lucide-react';
+import Image from 'next/image';
 
 const STATUS_CONFIG = {
   new: { label: 'Novos', color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20', dot: 'bg-blue-400' },
@@ -32,6 +33,7 @@ interface Order {
   status: OrderStatus;
   created_at: string;
   pix_confirmed: boolean;
+  pix_receipt_url: string | null;
   order_items: OrderItem[];
 }
 
@@ -42,6 +44,7 @@ const NEXT_STATUS: Record<string, OrderStatus> = {
 };
 
 export default function OrdersKanban({ initialOrders }: { initialOrders: Order[] }) {
+  const supabase = createSupabaseBrowserClient();
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -59,15 +62,47 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
   };
 
   const togglePix = async (orderId: string, current: boolean) => {
-    const { error } = await supabase
-      .from('orders')
-      .update({ pix_confirmed: !current })
-      .eq('id', orderId);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ pix_confirmed: !current })
+        .eq('id', orderId);
 
-    if (!error) {
+      if (error) throw error;
+
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, pix_confirmed: !current } : o))
       );
+    } catch (err: any) {
+      alert('Erro ao confirmar PIX: ' + err.message);
+    }
+  };
+
+  const handleReceiptUpload = async (orderId: string, file: File) => {
+    try {
+      const ext = file.name.split('.').pop();
+      const path = `receipts/${orderId}-${Date.now()}.${ext}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('images')
+        .upload(path, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('images')
+        .getPublicUrl(path);
+
+      const { error: updateError } = await supabase
+        .from('orders')
+        .update({ pix_receipt_url: publicUrl })
+        .eq('id', orderId);
+
+      if (updateError) throw updateError;
+
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, pix_receipt_url: publicUrl } : o));
+    } catch (err: any) {
+      alert('Erro ao subir comprovante: ' + err.message);
     }
   };
 
@@ -107,6 +142,7 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
                   onTogglePix={() => togglePix(order.id, order.pix_confirmed)}
                   onAdvance={() => NEXT_STATUS[order.status] && updateStatus(order.id, NEXT_STATUS[order.status])}
                   onCancel={() => updateStatus(order.id, 'canceled')}
+                  onUploadReceipt={(file) => handleReceiptUpload(order.id, file)}
                 />
               ))}
             </div>
@@ -117,13 +153,14 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
   );
 }
 
-function OrderCard({ order, isExpanded, onToggle, onTogglePix, onAdvance, onCancel }: {
+function OrderCard({ order, isExpanded, onToggle, onTogglePix, onAdvance, onCancel, onUploadReceipt }: {
   order: Order;
   isExpanded: boolean;
   onToggle: () => void;
   onTogglePix: () => void;
   onAdvance: () => void;
   onCancel: () => void;
+  onUploadReceipt: (file: File) => void;
 }) {
   const config = STATUS_CONFIG[order.status];
   const canAdvance = !!NEXT_STATUS[order.status];
@@ -184,7 +221,6 @@ function OrderCard({ order, isExpanded, onToggle, onTogglePix, onAdvance, onCanc
               </div>
             ))}
           </div>
-
           {/* Info do cliente */}
           <div className="space-y-2 border-t border-gray-800 pt-3">
             <div className="flex items-start gap-2 text-sm">
@@ -201,6 +237,38 @@ function OrderCard({ order, isExpanded, onToggle, onTogglePix, onAdvance, onCanc
               {order.customer_phone}
             </a>
           </div>
+
+          {/* Seção de Comprovante PIX */}
+          {order.payment_method === 'pix' && (
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1.5">
+                  <Paperclip className="w-3 h-3" /> Comprovante de Pagamento
+                </span>
+                {order.pix_receipt_url && (
+                  <a href={order.pix_receipt_url} target="_blank" className="text-blue-400 hover:text-blue-300 text-[10px] font-bold flex items-center gap-1">
+                    <Eye className="w-3 h-3" /> Ver agora
+                  </a>
+                )}
+              </div>
+              
+              {order.pix_receipt_url ? (
+                <div className="relative h-20 w-full rounded-lg overflow-hidden group">
+                  <Image src={order.pix_receipt_url} alt="Comprovante" fill className="object-cover opacity-60" />
+                  <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 cursor-pointer transition-all">
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onUploadReceipt(e.target.files[0])} />
+                    <span className="text-[10px] font-bold text-white uppercase">Trocar Arquivo</span>
+                  </label>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center border-2 border-dashed border-gray-700 rounded-lg py-4 cursor-pointer hover:border-blue-500/50 transition-all group">
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onUploadReceipt(e.target.files[0])} />
+                  <Upload className="w-5 h-5 text-gray-600 mb-1 group-hover:text-blue-400 transition-colors" />
+                  <span className="text-[10px] font-bold text-gray-500 group-hover:text-blue-400">Anexar Comprovante</span>
+                </label>
+              )}
+            </div>
+          )}
 
           {/* Ações */}
           {order.status !== 'finished' && order.status !== 'canceled' && (
