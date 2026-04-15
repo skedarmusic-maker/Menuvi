@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
-import { Clock, Search, MapPin, CreditCard, Info } from "lucide-react";
+import { Clock, Search, MapPin, CreditCard, Info, User as UserIcon } from "lucide-react";
+import Link from 'next/link';
 import ProductList from "@/components/ProductList";
 
 // Função para buscar dados da loja
@@ -66,6 +67,8 @@ export default async function StorePage({
 }) {
   const { slug } = await params;
   const store = await getStoreData(slug);
+  
+  const { data: { user } } = await supabase.auth.getUser();
 
   if (!store.is_active) {
     return (
@@ -91,6 +94,17 @@ export default async function StorePage({
           priority
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+        
+        {/* BOTÃO ÁREA DO CLIENTE */}
+        <div className="absolute top-4 right-4 flex gap-2">
+           <Link 
+             href={user ? `/${slug}/account` : `/${slug}/login`}
+             className="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all border border-white/20 shadow-lg"
+           >
+             {user ? <UserIcon className="w-4 h-4" /> : null}
+             {user ? 'Minha Conta' : 'Entrar / Cadastrar'}
+           </Link>
+        </div>
       </div>
 
       {/* INFORMAÇÕES DA LOJA (Sobrepondo o banner) */}

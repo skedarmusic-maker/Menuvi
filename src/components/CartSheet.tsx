@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useCart } from '@/context/CartContext';
-import { X, Trash2, MapPin, Phone, User, CreditCard, ChevronRight } from 'lucide-react';
+import { X, Trash2, MapPin, Phone, User, CreditCard, ChevronRight, Pencil } from 'lucide-react';
 import { calculateDeliveryDistance, getDeliveryFee } from '@/lib/delivery';
 import { supabase } from '@/lib/supabase';
 
@@ -10,9 +10,10 @@ interface CartSheetProps {
   isOpen: boolean;
   onClose: () => void;
   store: any;
+  onEditItem?: (item: any) => void;
 }
 
-export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
+export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSheetProps) {
   const { cart, totalPrice: cartTotal, updateQuantity, removeFromCart, clearCart } = useCart();
   const [step, setStep] = useState<'items' | 'checkout'>('items');
   const [loading, setLoading] = useState(false);
@@ -30,10 +31,43 @@ export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null);
   const [calculatingFee, setCalculatingFee] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'dinheiro'>('pix');
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function checkUser() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserId(user.id);
+        const { data: profile } = await supabase.from('customer_profiles').select('*').eq('id', user.id).single();
+        if (profile) {
+          setCustomerName(profile.full_name || '');
+          setCustomerPhone(profile.phone || '');
+          setAddress({
+            street: profile.address_street || '',
+            number: profile.address_number || '',
+            neighborhood: profile.neighborhood || '',
+            cep: profile.cep || '',
+            complement: profile.complement || ''
+          });
+          
+          // Se tiver CEP, tenta calcular o frete automaticamente
+          if (profile.cep && store.has_distance_delivery) {
+             console.log('🚚 CEP do perfil encontrado, calculando frete...');
+             const distance = await calculateDeliveryDistance(profile.cep);
+             if (distance !== null) setDeliveryFee(getDeliveryFee(distance));
+          }
+        }
+      }
+    }
+    checkUser();
+  }, [supabase, store.has_distance_delivery]);
 
   const totalPriceWithDelivery = cartTotal + (deliveryFee || 0);
 
   const handleCepBlur = async () => {
+    // Só calcula se o SuperAdmin habilitou o recurso para esta loja
+    if (!store.has_distance_delivery) return;
+
     if (address.cep.replace(/\D/g, '').length === 8) {
       setCalculatingFee(true);
       try {
@@ -81,6 +115,7 @@ export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
           customer_address: fullAddress,
           total_amount: totalPriceWithDelivery,
           payment_method: paymentMethod,
+          customer_id: userId,
           status: 'new'
         })
         .select()
@@ -205,11 +240,16 @@ export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
                       {item.image_url && <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />}
                     </div>
                     <div className="flex-1">
-                      <div className="flex justify-between">
-                         <h4 className="font-bold text-gray-900 leading-tight">{item.name}</h4>
-                         <button onClick={() => removeFromCart(item.id)} className="text-gray-400 hover:text-red-500">
-                           <X className="w-4 h-4" />
-                         </button>
+                      <div className="flex justify-between items-start">
+                         <h4 className="font-bold text-gray-900 leading-tight pr-2">{item.name}</h4>
+                         <div className="flex items-center gap-2 shrink-0">
+                            <button onClick={() => onEditItem?.(item)} className="p-1 text-gray-400 hover:text-orange-500 transition-colors">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => removeFromCart(item.id)} className="text-gray-400 hover:text-red-500">
+                              <X className="w-4 h-4" />
+                            </button>
+                         </div>
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5 line-clamp-1 italic">{item.observations}</p>
                       
