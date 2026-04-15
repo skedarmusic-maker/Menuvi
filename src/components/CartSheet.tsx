@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import { X, Trash2, MapPin, Phone, User, CreditCard, ChevronRight } from 'lucide-react';
+import { calculateDeliveryDistance, getDeliveryFee } from '@/lib/delivery';
 import { supabase } from '@/lib/supabase';
 
 interface CartSheetProps {
@@ -12,7 +13,7 @@ interface CartSheetProps {
 }
 
 export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
-  const { cart, totalPrice, updateQuantity, removeFromCart, clearCart } = useCart();
+  const { cart, totalPrice: cartTotal, updateQuantity, removeFromCart, clearCart } = useCart();
   const [step, setStep] = useState<'items' | 'checkout'>('items');
   const [loading, setLoading] = useState(false);
 
@@ -26,7 +27,28 @@ export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
     cep: '',
     complement: ''
   });
+  const [deliveryFee, setDeliveryFee] = useState<number | null>(null);
+  const [calculatingFee, setCalculatingFee] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'dinheiro'>('pix');
+
+  const totalPriceWithDelivery = cartTotal + (deliveryFee || 0);
+
+  const handleCepBlur = async () => {
+    if (address.cep.replace(/\D/g, '').length === 8) {
+      setCalculatingFee(true);
+      try {
+        const distance = await calculateDeliveryDistance(address.cep);
+        if (distance !== null) {
+          const fee = getDeliveryFee(distance);
+          setDeliveryFee(fee);
+        }
+      } catch (error) {
+        console.error('Erro ao calcular frete:', error);
+      } finally {
+        setCalculatingFee(false);
+      }
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -57,7 +79,7 @@ export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
           customer_name: customerName,
           customer_phone: customerPhone,
           customer_address: fullAddress,
-          total_amount: totalPrice,
+          total_amount: totalPriceWithDelivery,
           payment_method: paymentMethod,
           status: 'new'
         })
@@ -92,7 +114,7 @@ export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
       if (itemsError) throw itemsError;
 
       // 3. Gerar Mensagem WhatsApp formatada
-      const formattedTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice);
+      const formattedTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPriceWithDelivery);
       
       const message = encodeURIComponent(
         `🔥 *NOVO PEDIDO NO MENUVI* 🔥\n` +
@@ -101,13 +123,14 @@ export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
         
         `👤 *DADOS DO CLIENTE*\n` +
         `*Nome:* ${customerName}\n` +
-        `*WhatsApp:* ${customerPhone}\n\n` +
+        `📞 *WhatsApp:* ${customerPhone}\n\n` +
         
         `📍 *ENDEREÇO DE ENTREGA*\n` +
         `*Rua:* ${address.street}, ${address.number}\n` +
         `*Bairro:* ${address.neighborhood}\n` +
         `${address.complement ? `*Compl.:* ${address.complement}\n` : ''}` +
-        `${address.cep ? `*CEP:* ${address.cep}\n` : ''}\n` +
+        `${address.cep ? `*CEP:* ${address.cep}\n` : ''}` +
+        `🛵 *Frete:* ${deliveryFee === 0 ? 'Grátis' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(deliveryFee || 0)}\n\n` +
         
         `🛒 *ITENS DO PEDIDO*\n` +
         `---------------------------------------\n` +
@@ -247,11 +270,22 @@ export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
                     className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
                   />
                   <input 
-                    type="text" value={address.cep} onChange={(e) => setAddress({...address, cep: e.target.value})}
-                    placeholder="CEP (opcional)"
+                    type="text" value={address.cep} 
+                    onChange={(e) => setAddress({...address, cep: e.target.value})}
+                    onBlur={handleCepBlur}
+                    placeholder="CEP"
                     className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
                   />
                 </div>
+                {calculatingFee && <p className="text-[10px] text-orange-500 animate-pulse font-bold px-2">Calculando frete...</p>}
+                {deliveryFee !== null && !calculatingFee && (
+                  <div className="bg-orange-50 border border-orange-100 p-3 rounded-xl flex items-center justify-between">
+                    <span className="text-xs text-orange-700 font-bold">Taxa de Entrega:</span>
+                    <span className="text-sm text-orange-700 font-black">
+                      {deliveryFee === 0 ? 'GRÁTIS' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(deliveryFee)}
+                    </span>
+                  </div>
+                )}
                 <input 
                   type="text" value={address.complement} onChange={(e) => setAddress({...address, complement: e.target.value})}
                   placeholder="Complemento (Apto, Bloco, Casa...)"
@@ -286,10 +320,8 @@ export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
         {cart.length > 0 && (
           <div className="p-6 border-t bg-white sticky bottom-0">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-gray-500 font-medium">Subtotal</span>
-              <span className="text-xl font-black text-gray-900">
-                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice)}
-              </span>
+              <span className="text-gray-500 font-medium">Total do Pedido</span>
+              <h3 className="font-bold text-gray-900">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPriceWithDelivery)}</h3>
             </div>
             {step === 'items' ? (
               <button 
