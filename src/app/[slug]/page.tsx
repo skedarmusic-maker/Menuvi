@@ -131,7 +131,7 @@ export default async function StorePage({
                 <Image src={store.logo_url} alt="Logo" fill className="object-cover" />
               ) : (
                 <div className="flex items-center justify-center w-full h-full font-bold text-gray-400 text-2xl">
-                  {store.name.charAt(0)}
+                  {store.name ? store.name.charAt(0) : 'M'}
                 </div>
               )}
             </div>
