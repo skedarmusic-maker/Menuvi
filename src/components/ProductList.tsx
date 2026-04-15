@@ -186,9 +186,9 @@ export default function ProductList({ store, products, categories }: { store: an
               </div>
               <div className="mt-8 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 bg-gray-100 p-1 rounded-2xl">
-                  <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-sm hover:bg-gray-50 text-xl font-bold">-</button>
-                  <span className="w-8 text-center font-bold text-lg">{quantity}</span>
-                  <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-sm hover:bg-gray-50 text-xl font-bold">+</button>
+                  <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-sm hover:bg-gray-50 text-xl font-bold text-gray-900 border border-gray-100">-</button>
+                  <span className="w-8 text-center font-bold text-lg text-gray-900">{quantity}</span>
+                  <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-sm hover:bg-gray-50 text-xl font-bold text-gray-900 border border-gray-100">+</button>
                 </div>
                 <button onClick={confirmAdd} className="flex-1 text-white font-bold py-4 rounded-2xl shadow-lg transition-transform active:scale-[0.98]" style={{ backgroundColor: store.theme_color }}>
                   {editingItemId ? 'Atualizar Item' : 'Adicionar'} • {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((selectedProduct.is_promo && selectedProduct.promo_price ? selectedProduct.promo_price : (selectedVariant ? selectedVariant.price : selectedProduct.price)) * quantity)}

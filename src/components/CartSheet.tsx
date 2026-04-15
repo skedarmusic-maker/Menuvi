@@ -276,10 +276,10 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                       <p className="text-xs text-gray-500 mt-0.5 line-clamp-1 italic">{item.observations}</p>
                       
                       <div className="flex items-center justify-between mt-3">
-                         <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1">
-                           <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-sm font-bold">-</button>
-                           <span className="text-sm font-bold w-4 text-center">{item.quantity}</span>
-                           <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-sm font-bold">+</button>
+                         <div className="flex items-center gap-3 bg-gray-100 rounded-lg p-1">
+                           <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-sm font-bold text-gray-900 border border-gray-100">-</button>
+                           <span className="text-sm font-black w-4 text-center text-gray-900">{item.quantity}</span>
+                           <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-sm font-bold text-gray-900 border border-gray-100">+</button>
                          </div>
                          <span className="font-bold text-gray-900">
                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price * item.quantity)}
@@ -407,17 +407,17 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                 <div className="grid grid-cols-2 gap-3">
                   <button 
                     onClick={() => setPaymentMethod('pix')}
-                    className={`p-4 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${paymentMethod === 'pix' ? 'border-gray-900 bg-gray-50' : 'border-gray-100 opacity-50'}`}
+                    className={`p-4 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${paymentMethod === 'pix' ? 'border-gray-950 bg-gray-100' : 'border-gray-100 opacity-40'}`}
                   >
-                    <div className="w-8 h-8 flex items-center justify-center font-black">PIX</div>
-                    <span className="text-xs font-bold">Pix na hora</span>
+                    <div className="w-8 h-8 flex items-center justify-center font-black text-gray-900">PIX</div>
+                    <span className="text-sm font-black text-gray-900">Pix na hora</span>
                   </button>
                   <button 
                     onClick={() => setPaymentMethod('dinheiro')}
-                    className={`p-4 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${paymentMethod === 'dinheiro' ? 'border-gray-900 bg-gray-50' : 'border-gray-100 opacity-50'}`}
+                    className={`p-4 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${paymentMethod === 'dinheiro' ? 'border-gray-950 bg-gray-100' : 'border-gray-100 opacity-40'}`}
                   >
-                    <div className="w-8 h-8 flex items-center justify-center font-black">R$</div>
-                    <span className="text-xs font-bold">Dinheiro</span>
+                    <div className="w-8 h-8 flex items-center justify-center font-black text-gray-900">R$</div>
+                    <span className="text-sm font-black text-gray-900">Dinheiro</span>
                   </button>
                 </div>
               </div>
