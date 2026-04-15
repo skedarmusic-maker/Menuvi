@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import MobileHeader from '@/components/admin/MobileHeader';
+import { ExternalLink, Share2 } from 'lucide-react';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createSupabaseServerClient();
@@ -34,6 +36,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col lg:flex-row">
       <AdminSidebar restaurant={restaurant} />
+      
+      {/* Mobile Header */}
+      <MobileHeader restaurant={restaurant} />
+
       <main className="flex-1 lg:ml-64 min-h-screen pb-20 lg:pb-0">
         {children}
       </main>
