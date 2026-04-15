@@ -21,12 +21,12 @@ export async function calculateDeliveryDistance(customerCep: string, storeCep: s
 
     const data = await response.json();
     
-    // De acordo com a documentação da API Brasil, o retorno costuma vir em objects ou string
-    // Vamos extrair a distância em KM
-    const distanceKm = data?.response?.distancia_km || data?.distancia_km || data?.response?.distancia_total || 0;
+    // A API retorna distanceRaw em metros dentro do objeto data
+    const distanceMeters = data?.data?.distanceRaw || 0;
+    const distanceKm = distanceMeters / 1000;
     
-    console.log('🏁 Distância Calculada:', distanceKm, 'KM');
-    return parseFloat(distanceKm);
+    console.log('🏁 Distância Calculada:', distanceKm.toFixed(2), 'KM');
+    return distanceKm;
   } catch (error) {
     console.error("❌ Erro ao calcular distância:", error);
     return null;
