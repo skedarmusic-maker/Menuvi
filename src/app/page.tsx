@@ -33,11 +33,11 @@ export default function Home() {
         </div>
 
         <h1 className="text-5xl md:text-7xl font-black text-white tracking-tight max-w-4xl z-10 leading-[1.1]">
-          CONEXÃO <span className="text-green-500">ESTABELECIDA V3</span>.
+          Seu cardápio digital <span className="text-orange-500">Premium</span>.
         </h1>
         
         <p className="text-gray-400 text-lg md:text-xl mt-6 max-w-2xl z-10">
-          Se você está lendo isso, o deploy da Hostinger FINALMENTE funcionou.
+          Crie um cardápio digital premium em minutos, receba pedidos organizados direto no seu WhatsApp e aumente suas vendas. Sem taxas por pedido.
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row items-center gap-4 z-10">

@@ -20,6 +20,7 @@ async function getStoreData(slug: string) {
       logo_url: "https://images.unsplash.com/photo-1572802419224-296b0aeee0d9?w=400&q=80&auto=format&fit=crop",
       whatsapp_number: "5511965843545",
       is_open: true,
+      is_active: true,
       categories: [
         { id: "1", name: "Destaques" },
         { id: "2", name: "Burgers" },
