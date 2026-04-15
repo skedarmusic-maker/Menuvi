@@ -256,7 +256,18 @@ function ProductModal({ editing, onSave, onClose }: { editing: Product | null; o
   const [price, setPrice] = useState(editing?.price?.toString() ?? '');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(editing?.image_url ?? null);
+  const [variants, setVariants] = useState<{ name: string; price: string }[]>(
+    editing?.variants?.map(v => ({ name: v.name, price: v.price.toString() })) ?? []
+  );
   const [loading, setLoading] = useState(false);
+
+  const addVariant = () => setVariants([...variants, { name: '', price: '' }]);
+  const removeVariant = (index: number) => setVariants(variants.filter((_, i) => i !== index));
+  const updateVariant = (index: number, field: 'name' | 'price', value: string) => {
+    const newVariants = [...variants];
+    newVariants[index][field] = value;
+    setVariants(newVariants);
+  };
 
   const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -266,17 +277,38 @@ function ProductModal({ editing, onSave, onClose }: { editing: Product | null; o
   };
 
   const handleSave = async () => {
-    if (!name || !price) return;
+    if (!name || (!price && variants.length === 0)) return;
     setLoading(true);
-    await onSave({ name, description, price: parseFloat(price.replace(',', '.')), image_url: editing?.image_url ?? null, imageFile: imageFile ?? undefined, is_active: true, is_featured: false });
+    
+    // Processa variações
+    const processedVariants = variants.map(v => ({
+      name: v.name,
+      price: parseFloat(v.price.replace(',', '.'))
+    })).filter(v => v.name && !isNaN(v.price));
+
+    // O preço principal será o da primeira variação se houver
+    const finalPrice = processedVariants.length > 0 
+      ? processedVariants[0].price 
+      : parseFloat(price.replace(',', '.'));
+
+    await onSave({ 
+      name, 
+      description, 
+      price: finalPrice, 
+      image_url: editing?.image_url ?? null, 
+      imageFile: imageFile ?? undefined, 
+      is_active: true, 
+      is_featured: false,
+      variants: processedVariants
+    });
     setLoading(false);
   };
 
   return (
     <ModalWrapper title={editing ? 'Editar Produto' : 'Novo Produto'} onClose={onClose}>
-      <div className="space-y-4">
+      <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1 pr-2 custom-scrollbar">
         {/* Upload de imagem */}
-        <div className="relative w-full h-40 bg-gray-800 rounded-xl overflow-hidden border-2 border-dashed border-gray-700 hover:border-orange-500 transition-colors">
+        <div className="relative w-full h-40 bg-gray-800 rounded-xl overflow-hidden border-2 border-dashed border-gray-700 hover:border-orange-500 transition-colors shrink-0">
           {imagePreview ? (
             <>
               <Image src={imagePreview} alt="Preview" fill className="object-cover" sizes="400px" unoptimized />
@@ -293,13 +325,57 @@ function ProductModal({ editing, onSave, onClose }: { editing: Product | null; o
           )}
         </div>
 
-        <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do produto" className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-all placeholder:text-gray-600" />
-        <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição (opcional)" rows={3} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-all placeholder:text-gray-600 resize-none" />
-        <div className="relative">
-          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">R$</span>
-          <input type="text" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0,00" className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-all placeholder:text-gray-600" />
+        <div className="space-y-3">
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Informações Básicas</label>
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do produto (Ex: Marmita de Frango)" className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-all placeholder:text-gray-600" />
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição (Ex: Arroz, feijão, frango grelhado...)" rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-all placeholder:text-gray-600 resize-none" />
         </div>
-        <button disabled={loading || !name || !price} onClick={handleSave} className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+
+        {/* Variações / Tamanhos */}
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center justify-between pl-1">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Tamanhos / Preços</label>
+            <button onClick={addVariant} className="text-orange-500 hover:text-orange-400 text-xs font-bold flex items-center gap-1">
+              <Plus className="w-3 h-3" /> Adicionar Tamanho
+            </button>
+          </div>
+          
+          {variants.length > 0 ? (
+            <div className="space-y-2">
+              {variants.map((variant, index) => (
+                <div key={index} className="flex gap-2 animate-in fade-in slide-in-from-top-1">
+                  <input 
+                    type="text" 
+                    value={variant.name} 
+                    onChange={(e) => updateVariant(index, 'name', e.target.value)}
+                    placeholder="Ex: P, M, G" 
+                    className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:border-orange-500 outline-none"
+                  />
+                  <div className="relative w-28">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
+                    <input 
+                      type="text" 
+                      value={variant.price} 
+                      onChange={(e) => updateVariant(index, 'price', e.target.value)}
+                      placeholder="0,00" 
+                      className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-8 pr-3 py-2 text-sm text-white focus:border-orange-500 outline-none"
+                    />
+                  </div>
+                  <button onClick={() => removeVariant(index)} className="p-2 text-gray-600 hover:text-red-400">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">R$</span>
+              <input type="text" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0,00" className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-all placeholder:text-gray-600" />
+            </div>
+          )}
+        </div>
+
+        <button disabled={loading || !name} onClick={handleSave} className="w-full mt-4 bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 sticky bottom-0">
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
           {loading ? 'Salvando...' : 'Salvar Produto'}
         </button>
