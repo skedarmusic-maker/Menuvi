@@ -13,37 +13,41 @@ interface Product {
   description: string;
   price: number;
   image_url: string | null;
+  variants?: { name: string; price: number }[];
 }
 
-interface Category {
-  id: string;
-  name: string;
-}
+// ... rest of interfaces ...
 
 export default function ProductList({ store, products, categories }: { store: any, products: Product[], categories: Category[] }) {
   const { addToCart, totalItems, totalPrice } = useCart();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<{ name: string; price: number } | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [observations, setObservations] = useState('');
   const [quantity, setQuantity] = useState(1);
 
   const handleAddClick = (product: Product) => {
     setSelectedProduct(product);
+    setSelectedVariant(product.variants && product.variants.length > 0 ? product.variants[0] : null);
     setQuantity(1);
     setObservations('');
   };
 
   const confirmAdd = () => {
     if (selectedProduct) {
+      const finalPrice = selectedVariant ? selectedVariant.price : selectedProduct.price;
+      const finalName = selectedVariant ? `${selectedProduct.name} (${selectedVariant.name})` : selectedProduct.name;
+      
       addToCart({
-        id: selectedProduct.id,
-        name: selectedProduct.name,
-        price: selectedProduct.price,
+        id: selectedVariant ? `${selectedProduct.id}-${selectedVariant.name}` : selectedProduct.id,
+        name: finalName,
+        price: finalPrice,
         quantity,
         observations,
         image_url: selectedProduct.image_url || undefined
       });
       setSelectedProduct(null);
+      setSelectedVariant(null);
     }
   };
 
@@ -96,8 +100,15 @@ export default function ProductList({ store, products, categories }: { store: an
                       {product.description && (
                         <p className="text-gray-500 text-sm mt-1 line-clamp-2 leading-snug">{product.description}</p>
                       )}
-                      <div className="mt-2 font-bold text-gray-900">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
+                      <div className="mt-2 font-bold text-gray-900 flex items-center gap-1">
+                        {product.variants && product.variants.length > 0 && (
+                          <span className="text-[10px] uppercase text-gray-400 font-bold border border-gray-100 px-1.5 py-0.5 rounded-md">A partir de</span>
+                        )}
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                          product.variants && product.variants.length > 0 
+                            ? Math.min(...product.variants.map(v => v.price))
+                            : product.price
+                        )}
                       </div>
                     </div>
                      <div className="w-24 h-24 shrink-0 rounded-xl bg-gray-100 relative overflow-hidden flex items-center justify-center">
@@ -143,6 +154,33 @@ export default function ProductList({ store, products, categories }: { store: an
               <h3 className="text-2xl font-bold text-gray-900">{selectedProduct.name}</h3>
               <p className="text-gray-500 mt-2 leading-relaxed">{selectedProduct.description}</p>
               
+              {/* Seletor de Variações */}
+              {selectedProduct.variants && selectedProduct.variants.length > 0 && (
+                <div className="mt-6">
+                  <label className="text-sm font-bold text-gray-900 block mb-3 uppercase tracking-widest">Escolha o Tamanho</label>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProduct.variants.map((v) => (
+                      <button
+                        key={v.name}
+                        onClick={() => setSelectedVariant(v)}
+                        className={`flex-1 min-w-[100px] border-2 rounded-2xl p-3 text-left transition-all ${
+                          selectedVariant?.name === v.name 
+                            ? "border-orange-500 bg-orange-50" 
+                            : "border-gray-100 bg-white hover:border-gray-200"
+                        }`}
+                      >
+                        <p className={`text-xs font-black uppercase ${selectedVariant?.name === v.name ? "text-orange-600" : "text-gray-400"}`}>
+                          {v.name}
+                        </p>
+                        <p className="font-bold text-gray-900 mt-0.5">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.price)}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
               <div className="mt-6">
                 <label className="text-sm font-bold text-gray-900 block mb-2">Alguma observação?</label>
                 <textarea 
@@ -171,7 +209,9 @@ export default function ProductList({ store, products, categories }: { store: an
                   className="flex-1 text-white font-bold py-4 rounded-2xl shadow-lg transition-transform active:scale-[0.98]"
                   style={{ backgroundColor: store.theme_color }}
                 >
-                  Adicionar • {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(selectedProduct.price * quantity)}
+                  Adicionar • {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+                    (selectedVariant ? selectedVariant.price : selectedProduct.price) * quantity
+                  )}
                 </button>
               </div>
             </div>
