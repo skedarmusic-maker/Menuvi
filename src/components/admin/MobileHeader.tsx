@@ -1,10 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ExternalLink, Share2 } from 'lucide-react';
+import { ExternalLink, Share2, Power, RefreshCw } from 'lucide-react';
+import { createSupabaseBrowserClient } from '@/lib/supabase-client';
+import { useRouter } from 'next/navigation';
 
 export default function MobileHeader({ restaurant }: { restaurant: any }) {
   const [shareLink, setShareLink] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const router = useRouter();
+  const supabase = createSupabaseBrowserClient();
 
   useEffect(() => {
     setShareLink(`${window.location.origin}/${restaurant.slug}`);
@@ -28,6 +33,21 @@ export default function MobileHeader({ restaurant }: { restaurant: any }) {
       navigator.clipboard.writeText(shareLink);
       alert('Link copiado para a área de transferência!');
     }
+  const handleToggle = async () => {
+    setIsUpdating(true);
+    try {
+      await supabase
+        .from('restaurants')
+        .update({ is_open: !restaurant.is_open })
+        .eq('id', restaurant.id);
+      
+      router.refresh();
+      window.location.reload();
+    } catch (err) {
+      console.error('Erro ao atualizar status:', err);
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -36,12 +56,24 @@ export default function MobileHeader({ restaurant }: { restaurant: any }) {
         <h1 className="text-white font-black text-lg leading-tight truncate max-w-[150px]">
           {restaurant.name}
         </h1>
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${restaurant.is_open ? 'bg-green-500' : 'bg-red-500'}`}></span>
-          <span className="text-gray-500 text-[10px] uppercase font-bold tracking-wider">
+        <button 
+          onClick={handleToggle}
+          disabled={isUpdating}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all active:scale-95 ${
+            restaurant.is_open 
+              ? 'bg-green-500/10 border-green-500/20 text-green-400' 
+              : 'bg-red-500/10 border-red-500/20 text-red-400'
+          }`}
+        >
+          {isUpdating ? (
+            <RefreshCw className="w-3 h-3 animate-spin" />
+          ) : (
+            <Power className="w-3 h-3" />
+          )}
+          <span className="text-[10px] uppercase font-black tracking-widest">
             {restaurant.is_open ? 'Aberta' : 'Fechada'}
           </span>
-        </div>
+        </button>
       </div>
 
       <div className="flex items-center gap-3">
