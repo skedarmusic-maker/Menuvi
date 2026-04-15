@@ -250,6 +250,7 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
