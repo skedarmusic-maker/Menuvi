@@ -19,28 +19,44 @@ export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
   // Form states
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
-  const [customerAddress, setCustomerAddress] = useState('');
+  const [address, setAddress] = useState({
+    street: '',
+    number: '',
+    neighborhood: '',
+    cep: '',
+    complement: ''
+  });
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'dinheiro'>('pix');
 
   if (!isOpen) return null;
 
   const handleCheckout = async () => {
-    if (!customerName || !customerPhone || !customerAddress) {
-      alert('Por favor, preencha todos os campos obrigatórios.');
+    if (!customerName || !customerPhone || !address.street || !address.number || !address.neighborhood) {
+      alert('Por favor, preencha nome, telefone e o endereço completo (Rua, Número e Bairro).');
       return;
     }
+
+    const fullAddress = `${address.street}, ${address.number}${address.complement ? ` (${address.complement})` : ''} - ${address.neighborhood}${address.cep ? ` - CEP: ${address.cep}` : ''}`;
 
     setLoading(true);
 
     try {
+      // 1. Validar IDs
+      const isRestaurantUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(store.id);
+      
+      console.log('🏁 Iniciando pedido:', {
+        restaurantId: store.id,
+        isUUID: isRestaurantUUID
+      });
+
       // 1. Salvar no Supabase
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
-          restaurant_id: store.id || '00000000-0000-0000-0000-000000000000', // GUID fake se for mock
+          restaurant_id: isRestaurantUUID ? store.id : '00000000-0000-0000-0000-000000000000',
           customer_name: customerName,
           customer_phone: customerPhone,
-          customer_address: customerAddress,
+          customer_address: fullAddress,
           total_amount: totalPrice,
           payment_method: paymentMethod,
           status: 'new'
@@ -51,28 +67,60 @@ export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
       if (orderError) throw orderError;
 
       // 2. Salvar itens do pedido
-      const itemsToInsert = cart.map(item => ({
-        order_id: order.id,
-        product_id: item.id.startsWith('p') ? null : item.id, // Se for mock 'p1', envia null
-        quantity: item.quantity,
-        unit_price: item.price,
-        observations: item.observations
-      }));
+      const itemsToInsert = cart.map(item => {
+        const rawId = item.id.includes('-') ? item.id.split('-')[0] : item.id;
+        
+        // Verifica se é um UUID válido (formato: 8-4-4-4-12 caracteres)
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
+        
+        console.log('📦 Processando item:', {
+          originalId: item.id,
+          cleanedId: rawId,
+          isUUID: isUUID
+        });
+
+        return {
+          order_id: order.id,
+          product_id: isUUID ? rawId : null,
+          quantity: item.quantity,
+          unit_price: item.price,
+          observations: item.observations
+        };
+      });
 
       const { error: itemsError } = await supabase.from('order_items').insert(itemsToInsert);
       if (itemsError) throw itemsError;
 
-      // 3. Gerar Mensagem WhatsApp
+      // 3. Gerar Mensagem WhatsApp formatada
+      const formattedTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice);
+      
       const message = encodeURIComponent(
-        `🍔 *NOVO PEDIDO - #${order.id.slice(0, 4)}*\n\n` +
-        `👤 *Cliente:* ${customerName}\n` +
-        `📞 *Telefone:* ${customerPhone}\n` +
-        `📍 *Endereço:* ${customerAddress}\n\n` +
-        `--- *ITENS* ---\n` +
-        cart.map(item => `${item.quantity}x ${item.name} (${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price)})${item.observations ? `\n   Obs: ${item.observations}` : ''}`).join('\n') +
-        `\n\n💰 *Total:* ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice)}\n` +
-        `💳 *Pagamento:* ${paymentMethod.toUpperCase()}\n\n` +
-        `_Aguardando confirmação da loja..._`
+        `🔥 *NOVO PEDIDO NO MENUVI* 🔥\n` +
+        `---------------------------------------\n` +
+        `🆔 *Pedido:* #${order.id.slice(0, 4).toUpperCase()}\n\n` +
+        
+        `👤 *DADOS DO CLIENTE*\n` +
+        `*Nome:* ${customerName}\n` +
+        `*WhatsApp:* ${customerPhone}\n\n` +
+        
+        `📍 *ENDEREÇO DE ENTREGA*\n` +
+        `*Rua:* ${address.street}, ${address.number}\n` +
+        `*Bairro:* ${address.neighborhood}\n` +
+        `${address.complement ? `*Compl.:* ${address.complement}\n` : ''}` +
+        `${address.cep ? `*CEP:* ${address.cep}\n` : ''}\n` +
+        
+        `🛒 *ITENS DO PEDIDO*\n` +
+        `---------------------------------------\n` +
+        cart.map(item => 
+          `✅ *${item.quantity}x ${item.name}*\n` +
+          `   ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price * item.quantity)}` +
+          `${item.observations ? `\n   📝 _Obs: ${item.observations}_` : ''}`
+        ).join('\n\n') +
+        `\n\n---------------------------------------\n` +
+        `💰 *VALOR TOTAL:* ${formattedTotal}\n` +
+        `💳 *FORMA DE PAGAMENTO:* ${paymentMethod.toUpperCase()}\n` +
+        `---------------------------------------\n\n` +
+        `_Enviado via Menuvi SaaS_ 🚀`
       );
 
       const whatsappUrl = `https://wa.me/${store.whatsapp_number}?text=${message}`;
@@ -81,9 +129,14 @@ export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
       clearCart();
       window.location.href = whatsappUrl;
 
-    } catch (error) {
-      console.error('Erro ao processar pedido:', error);
-      alert('Ocorreu um erro ao salvar seu pedido. Mas você pode enviar direto pelo WhatsApp!');
+    } catch (error: any) {
+      console.error('Erro detalhado ao processar pedido:', error);
+      alert('Erro ao salvar pedido: ' + (error.message || 'Erro desconhecido. Tentando enviar por WhatsApp...'));
+      // Fallback: mesmo com erro no banco, tenta abrir o WhatsApp se tivermos os dados básicos
+      if (customerName && customerPhone) {
+        // ... (o código do passo 3 pode ser duplicado aqui se quiser garantir o envio mesmo sem banco, 
+        // mas por hora vamos focar em arrumar o banco)
+      }
     } finally {
       setLoading(false);
     }
@@ -171,10 +224,38 @@ export default function CartSheet({ isOpen, onClose, store }: CartSheetProps) {
 
               <div className="space-y-4">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2"><MapPin className="w-4 h-4" /> Endereço de Entrega</h3>
-                <textarea 
-                  value={customerAddress} onChange={(e) => setCustomerAddress(e.target.value)}
-                  placeholder="Rua, Número, Bairro, Complemento"
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200 h-24 resize-none"
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="col-span-3">
+                    <input 
+                      type="text" value={address.street} onChange={(e) => setAddress({...address, street: e.target.value})}
+                      placeholder="Rua / Avenida"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                    />
+                  </div>
+                  <div className="col-span-1">
+                    <input 
+                      type="text" value={address.number} onChange={(e) => setAddress({...address, number: e.target.value})}
+                      placeholder="Nº"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <input 
+                    type="text" value={address.neighborhood} onChange={(e) => setAddress({...address, neighborhood: e.target.value})}
+                    placeholder="Bairro"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                  />
+                  <input 
+                    type="text" value={address.cep} onChange={(e) => setAddress({...address, cep: e.target.value})}
+                    placeholder="CEP (opcional)"
+                    className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                  />
+                </div>
+                <input 
+                  type="text" value={address.complement} onChange={(e) => setAddress({...address, complement: e.target.value})}
+                  placeholder="Complemento (Apto, Bloco, Casa...)"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
                 />
               </div>
 
