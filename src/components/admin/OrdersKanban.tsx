@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase-client';
 import { Clock, User, MapPin, Package, Truck, CheckCircle, XCircle, ChevronDown, MessageCircle, Paperclip, Eye, Upload, Loader2, FileText } from 'lucide-react';
 import Image from 'next/image';
@@ -44,20 +45,28 @@ const NEXT_STATUS: Record<string, OrderStatus> = {
 };
 
 export default function OrdersKanban({ initialOrders }: { initialOrders: Order[] }) {
+  const router = useRouter();
   const supabase = createSupabaseBrowserClient();
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const updateStatus = async (orderId: string, newStatus: OrderStatus) => {
-    const { error } = await supabase
-      .from('orders')
-      .update({ status: newStatus })
-      .eq('id', orderId);
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
 
-    if (!error) {
+      if (error) throw error;
+
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
       );
+      
+      router.refresh();
+    } catch (err: any) {
+      alert('❌ Erro ao atualizar pedido: ' + (err.message || 'Erro desconhecido'));
+      console.error(err);
     }
   };
 
@@ -73,6 +82,8 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, pix_confirmed: !current } : o))
       );
+
+      router.refresh();
     } catch (err: any) {
       alert('Erro ao confirmar PIX: ' + err.message);
     }
