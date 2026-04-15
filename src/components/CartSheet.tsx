@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCart } from '@/context/CartContext';
-import { X, Trash2, MapPin, Phone, User, CreditCard, ChevronRight, Pencil } from 'lucide-react';
+import { X, Trash2, MapPin, Phone, User, CreditCard, ChevronRight, Pencil, RotateCcw } from 'lucide-react';
 import { calculateDeliveryDistance, getDeliveryFee } from '@/lib/delivery';
 import { supabase } from '@/lib/supabase';
 
@@ -32,6 +32,8 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
   const [calculatingFee, setCalculatingFee] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'dinheiro'>('pix');
   const [userId, setUserId] = useState<string | null>(null);
+  const [savedProfile, setSavedProfile] = useState<any>(null);
+  const [useSavedAddress, setUseSavedAddress] = useState(false);
 
   useEffect(() => {
     async function checkUser() {
@@ -40,21 +42,26 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
         setUserId(user.id);
         const { data: profile } = await supabase.from('customer_profiles').select('*').eq('id', user.id).single();
         if (profile) {
-          setCustomerName(profile.full_name || '');
-          setCustomerPhone(profile.phone || '');
-          setAddress({
-            street: profile.address_street || '',
-            number: profile.address_number || '',
-            neighborhood: profile.neighborhood || '',
-            cep: profile.cep || '',
-            complement: profile.complement || ''
-          });
+          setSavedProfile(profile);
+          setUserId(user.id);
           
-          // Se tiver CEP, tenta calcular o frete automaticamente
-          if (profile.cep && store.has_distance_delivery) {
-             console.log('🚚 CEP do perfil encontrado, calculando frete...');
-             const distance = await calculateDeliveryDistance(profile.cep);
-             if (distance !== null) setDeliveryFee(getDeliveryFee(distance));
+          if (profile.address_street) {
+            setUseSavedAddress(true);
+            setCustomerName(profile.full_name || '');
+            setCustomerPhone(profile.phone || '');
+            setAddress({
+              street: profile.address_street || '',
+              number: profile.address_number || '',
+              neighborhood: profile.neighborhood || '',
+              cep: profile.cep || '',
+              complement: profile.complement || ''
+            });
+
+            // Auto-calcula frete para o endereço salvo
+            if (profile.cep && store.has_distance_delivery) {
+               const distance = await calculateDeliveryDistance(profile.cep);
+               if (distance !== null) setDeliveryFee(getDeliveryFee(distance));
+            }
           }
         }
       }
@@ -287,36 +294,88 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
 
               <div className="space-y-4">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2"><MapPin className="w-4 h-4" /> Endereço de Entrega</h3>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="col-span-3">
+                
+                {useSavedAddress && savedProfile?.address_street ? (
+                  /* CARD DE ENDEREÇO SALVO */
+                  <div className="bg-white border-2 border-orange-500/20 p-5 rounded-3xl space-y-3 shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 bg-orange-500 text-white text-[9px] font-black px-3 py-1 rounded-bl-xl">SALVO</div>
+                    <div>
+                      <p className="text-gray-900 font-bold">{savedProfile.address_street}, {savedProfile.address_number}</p>
+                      <p className="text-gray-500 text-xs">{savedProfile.neighborhood} - {savedProfile.cep}</p>
+                      {savedProfile.complement && <p className="text-gray-400 text-[10px] italic">Ref: {savedProfile.complement}</p>}
+                    </div>
+                    
+                    <button 
+                      onClick={() => {
+                        setUseSavedAddress(false);
+                        setAddress({ street: '', number: '', neighborhood: '', cep: '', complement: '' });
+                        setDeliveryFee(null);
+                      }}
+                      className="text-xs font-bold text-orange-500 flex items-center gap-1 hover:underline"
+                    >
+                      Usar outro endereço
+                    </button>
+                  </div>
+                ) : (
+                  /* FORMULÁRIO MANUAL */
+                  <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className="grid grid-cols-4 gap-3">
+                      <div className="col-span-3">
+                        <input 
+                          type="text" value={address.street} onChange={(e) => setAddress({...address, street: e.target.value})}
+                          placeholder="Rua / Avenida"
+                          className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                        />
+                      </div>
+                      <div className="col-span-1">
+                        <input 
+                          type="text" value={address.number} onChange={(e) => setAddress({...address, number: e.target.value})}
+                          placeholder="Nº"
+                          className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <input 
+                        type="text" value={address.neighborhood} onChange={(e) => setAddress({...address, neighborhood: e.target.value})}
+                        placeholder="Bairro"
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                      />
+                      <input 
+                        type="text" value={address.cep} 
+                        onChange={(e) => setAddress({...address, cep: e.target.value})}
+                        onBlur={handleCepBlur}
+                        placeholder="CEP"
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                      />
+                    </div>
                     <input 
-                      type="text" value={address.street} onChange={(e) => setAddress({...address, street: e.target.value})}
-                      placeholder="Rua / Avenida"
+                      type="text" value={address.complement} onChange={(e) => setAddress({...address, complement: e.target.value})}
+                      placeholder="Complemento (Apto, Bloco, Casa...)"
                       className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
                     />
+                    
+                    {savedProfile?.address_street && (
+                      <button 
+                        onClick={() => {
+                          setUseSavedAddress(true);
+                          setAddress({
+                            street: savedProfile.address_street,
+                            number: savedProfile.address_number,
+                            neighborhood: savedProfile.neighborhood,
+                            cep: savedProfile.cep,
+                            complement: savedProfile.complement
+                          });
+                          handleCepBlur();
+                        }}
+                        className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"
+                      >
+                         <RotateCcw className="w-3 h-3" /> Voltar para endereço salvo
+                      </button>
+                    )}
                   </div>
-                  <div className="col-span-1">
-                    <input 
-                      type="text" value={address.number} onChange={(e) => setAddress({...address, number: e.target.value})}
-                      placeholder="Nº"
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <input 
-                    type="text" value={address.neighborhood} onChange={(e) => setAddress({...address, neighborhood: e.target.value})}
-                    placeholder="Bairro"
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
-                  />
-                  <input 
-                    type="text" value={address.cep} 
-                    onChange={(e) => setAddress({...address, cep: e.target.value})}
-                    onBlur={handleCepBlur}
-                    placeholder="CEP"
-                    className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
-                  />
-                </div>
+                )}
+
                 {calculatingFee && <p className="text-[10px] text-orange-500 animate-pulse font-bold px-2">Calculando frete...</p>}
                 {deliveryFee !== null && !calculatingFee && (
                   <div className="bg-orange-50 border border-orange-100 p-3 rounded-xl flex items-center justify-between">
@@ -326,11 +385,6 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                     </span>
                   </div>
                 )}
-                <input 
-                  type="text" value={address.complement} onChange={(e) => setAddress({...address, complement: e.target.value})}
-                  placeholder="Complemento (Apto, Bloco, Casa...)"
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
-                />
               </div>
 
               <div className="space-y-4 pb-8">
