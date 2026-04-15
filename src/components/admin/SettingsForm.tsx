@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-client';
 import { Save, Loader2, Store, Phone, Palette, Globe, Image as ImageIcon, Camera, Trash2 } from 'lucide-react';
 
 const THEME_COLORS = [
@@ -17,6 +17,7 @@ const THEME_COLORS = [
 ];
 
 export default function SettingsForm({ restaurant }: { restaurant: any }) {
+  const supabase = createSupabaseBrowserClient();
   const [name, setName] = useState(restaurant.name || '');
   const [whatsapp, setWhatsapp] = useState(
     // Remove o 55 do início para exibir só o DDD + número
