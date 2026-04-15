@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { useCart } from '@/context/CartContext';
-import { Plus, X, ShoppingBag } from 'lucide-react';
+import { Plus, X, ShoppingBag, Search } from 'lucide-react';
 import CartSheet from './CartSheet';
 
 interface Product {
@@ -18,25 +18,59 @@ interface Product {
   variants?: { name: string; price: number }[];
 }
 
-// ... rest of interfaces ...
+interface Category {
+  id: string;
+  name: string;
+}
 
 export default function ProductList({ store, products, categories }: { store: any, products: Product[], categories: Category[] }) {
-  const { addToCart, totalItems, totalPrice } = useCart();
+  const { cart, addToCart, removeFromCart, totalItems, totalPrice } = useCart();
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [selectedVariant, setSelectedVariant] = useState<{ name: string; price: number } | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [observations, setObservations] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+
+  const handleEditCartItem = (cartItem: any) => {
+    const productId = cartItem.id.split('-')[0];
+    const product = products.find(p => p.id === productId);
+    
+    if (product) {
+      setSelectedProduct(product);
+      
+      let variant = null;
+      if (cartItem.id.includes('-') && product.variants) {
+        // Tenta extrair o nome da variante do nome exibido: "Produto (Variante)"
+        const variantMatch = cartItem.name.match(/\((.*)\)/);
+        if (variantMatch) {
+          const variantName = variantMatch[1];
+          variant = product.variants.find(v => v.name === variantName);
+        }
+      }
+      
+      setSelectedVariant(variant || null);
+      setQuantity(cartItem.quantity);
+      setObservations(cartItem.observations || '');
+      setEditingItemId(cartItem.id);
+      setIsCartOpen(false);
+    }
+  };
 
   const handleAddClick = (product: Product) => {
     setSelectedProduct(product);
     setSelectedVariant(product.variants && product.variants.length > 0 ? product.variants[0] : null);
     setQuantity(1);
     setObservations('');
+    setEditingItemId(null);
   };
 
   const confirmAdd = () => {
     if (selectedProduct) {
+      if (editingItemId) {
+        removeFromCart(editingItemId);
+      }
+
       const finalPrice = selectedProduct.is_promo && selectedProduct.promo_price 
         ? selectedProduct.promo_price 
         : (selectedVariant ? selectedVariant.price : selectedProduct.price);
@@ -51,22 +85,21 @@ export default function ProductList({ store, products, categories }: { store: an
         observations,
         image_url: selectedProduct.image_url || undefined
       });
+      
       setSelectedProduct(null);
       setSelectedVariant(null);
+      setEditingItemId(null);
     }
   };
 
   return (
     <>
-      {/* CATEGORIAS HORIZONTAIS */}
       <div className="flex overflow-x-auto px-5 py-4 gap-3 no-scrollbar border-b border-gray-50 sticky top-[73px] z-20 bg-white/95 backdrop-blur-md">
         {categories.map((cat, index) => (
           <button 
             key={cat.id} 
             className={`whitespace-nowrap px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
-              index === 0 
-                ? "text-white" 
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              index === 0 ? "text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
             style={index === 0 ? { backgroundColor: store.theme_color } : {}}
             onClick={() => {
@@ -84,67 +117,38 @@ export default function ProductList({ store, products, categories }: { store: an
         ))}
       </div>
 
-      {/* LISTA DE PRODUTOS */}
       <div className="px-5 py-6 space-y-8">
         {categories.map((cat) => {
           const catProducts = products.filter((p) => p.category_id === cat.id);
           if (catProducts.length === 0) return null;
-
           return (
             <div key={cat.id} id={`cat-${cat.id}`}>
               <h2 className="text-lg font-bold text-gray-900 mb-4">{cat.name}</h2>
               <div className="space-y-4">
                 {catProducts.map((product) => (
-                  <div 
-                    key={product.id} 
-                    onClick={() => handleAddClick(product)}
-                    className="flex gap-4 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-[0.98]"
-                  >
+                  <div key={product.id} onClick={() => handleAddClick(product)} className="flex gap-4 p-4 rounded-2xl bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow cursor-pointer active:scale-[0.98]">
                     <div className="flex-1 flex flex-col justify-center">
                       <h3 className="font-semibold text-gray-900 leading-tight">{product.name}</h3>
-                      {product.description && (
-                        <p className="text-gray-500 text-sm mt-1 line-clamp-2 leading-snug">{product.description}</p>
-                      )}
+                      {product.description && <p className="text-gray-500 text-sm mt-1 line-clamp-2 leading-snug">{product.description}</p>}
                       <div className="mt-2 font-bold text-gray-900 flex items-center gap-2">
                         {product.is_promo && product.promo_price ? (
                           <>
-                            <span className="text-orange-500 text-lg">
-                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.promo_price)}
-                            </span>
-                            <span className="text-gray-400 text-xs line-through font-normal">
-                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
-                            </span>
+                            <span className="text-orange-500 text-lg">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.promo_price)}</span>
+                            <span className="text-gray-400 text-xs line-through font-normal">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}</span>
                           </>
                         ) : (
                           <>
-                            {product.variants && product.variants.length > 0 && (
-                              <span className="text-[10px] uppercase text-gray-400 font-bold border border-gray-100 px-1.5 py-0.5 rounded-md">A partir de</span>
-                            )}
-                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                              product.variants && product.variants.length > 0 
-                                ? Math.min(...product.variants.map(v => v.price))
-                                : product.price
-                            )}
+                            {product.variants && product.variants.length > 0 && <span className="text-[10px] uppercase text-gray-400 font-bold border border-gray-100 px-1.5 py-0.5 rounded-md">A partir de</span>}
+                            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.variants && product.variants.length > 0 ? Math.min(...product.variants.map(v => v.price)) : product.price)}
                           </>
                         )}
                       </div>
                     </div>
-                     <div className="w-24 h-24 shrink-0 rounded-xl bg-gray-100 relative overflow-hidden flex items-center justify-center">
-                        {product.image_url ? (
-                          <Image src={product.image_url} alt={product.name} fill className="object-cover" />
-                        ) : (
-                          <div className="text-gray-300 font-medium text-xs text-center p-2">Sem foto</div>
-                        )}
-                        <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-tl-xl rounded-br-xl flex items-center justify-center text-white"
-                             style={{ backgroundColor: store.theme_color }}>
-                          <Plus className="w-5 h-5" />
-                        </div>
-                        {product.is_promo && (
-                          <div className="absolute top-2 left-2 bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-lg border border-white/20 animate-pulse">
-                            OFERTA
-                          </div>
-                        )}
-                     </div>
+                    <div className="w-24 h-24 shrink-0 rounded-xl bg-gray-100 relative overflow-hidden flex items-center justify-center">
+                      {product.image_url ? <Image src={product.image_url} alt={product.name} fill className="object-cover" /> : <div className="text-gray-300 font-medium text-xs text-center p-2">Sem foto</div>}
+                      <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-tl-xl rounded-br-xl flex items-center justify-center text-white" style={{ backgroundColor: store.theme_color }}><Plus className="w-5 h-5" /></div>
+                      {product.is_promo && <div className="absolute top-2 left-2 bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-lg border border-white/20 animate-pulse">OFERTA</div>}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -153,88 +157,41 @@ export default function ProductList({ store, products, categories }: { store: an
         })}
       </div>
 
-      {/* MODAL DE ADIÇÃO */}
       {selectedProduct && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white w-full max-w-md rounded-t-[32px] overflow-hidden animate-in slide-in-from-bottom duration-300">
             <div className="relative h-64 w-full bg-gray-100">
-              {selectedProduct.image_url ? (
-                <Image src={selectedProduct.image_url} alt={selectedProduct.name} fill className="object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400">
-                  <ShoppingBag className="w-12 h-12 opacity-50" />
-                </div>
-              )}
-              <button 
-                onClick={() => setSelectedProduct(null)}
-                className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 backdrop-blur-md text-white p-2 rounded-full transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
+              {selectedProduct.image_url ? <Image src={selectedProduct.image_url} alt={selectedProduct.name} fill className="object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400"><ShoppingBag className="w-12 h-12 opacity-50" /></div>}
+              <button onClick={() => {setSelectedProduct(null); setEditingItemId(null);}} className="absolute top-4 right-4 bg-black/20 hover:bg-black/40 backdrop-blur-md text-white p-2 rounded-full transition-colors"><X className="w-6 h-6" /></button>
             </div>
-            
             <div className="p-6">
               <h3 className="text-2xl font-bold text-gray-900">{selectedProduct.name}</h3>
               <p className="text-gray-500 mt-2 leading-relaxed">{selectedProduct.description}</p>
-              
-              {/* Seletor de Variações */}
               {selectedProduct.variants && selectedProduct.variants.length > 0 && (
                 <div className="mt-6">
                   <label className="text-sm font-bold text-gray-900 block mb-3 uppercase tracking-widest">Escolha o Tamanho</label>
                   <div className="flex flex-wrap gap-2">
                     {selectedProduct.variants.map((v) => (
-                      <button
-                        key={v.name}
-                        onClick={() => setSelectedVariant(v)}
-                        className={`flex-1 min-w-[100px] border-2 rounded-2xl p-3 text-left transition-all ${
-                          selectedVariant?.name === v.name 
-                            ? "border-orange-500 bg-orange-50" 
-                            : "border-gray-100 bg-white hover:border-gray-200"
-                        }`}
-                      >
-                        <p className={`text-xs font-black uppercase ${selectedVariant?.name === v.name ? "text-orange-600" : "text-gray-400"}`}>
-                          {v.name}
-                        </p>
-                        <p className="font-bold text-gray-900 mt-0.5">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.price)}
-                        </p>
+                      <button key={v.name} onClick={() => setSelectedVariant(v)} className={`flex-1 min-w-[100px] border-2 rounded-2xl p-3 text-left transition-all ${selectedVariant?.name === v.name ? "border-orange-500 bg-orange-50" : "border-gray-100 bg-white hover:border-gray-200"}`}>
+                        <p className={`text-xs font-black uppercase ${selectedVariant?.name === v.name ? "text-orange-600" : "text-gray-400"}`}>{v.name}</p>
+                        <p className="font-bold text-gray-900 mt-0.5">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v.price)}</p>
                       </button>
                     ))}
                   </div>
                 </div>
               )}
-              
               <div className="mt-6">
                 <label className="text-sm font-bold text-gray-900 block mb-2">Alguma observação?</label>
-                <textarea 
-                  value={observations}
-                  onChange={(e) => setObservations(e.target.value)}
-                  placeholder="Ex: sem cebola, ponto da carne, etc..."
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200 transition-all h-24 resize-none"
-                />
+                <textarea value={observations} onChange={(e) => setObservations(e.target.value)} placeholder="Ex: sem cebola, ponto da carne, etc..." className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200 transition-all h-24 resize-none" />
               </div>
-
               <div className="mt-8 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 bg-gray-100 p-1 rounded-2xl">
-                  <button 
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-sm hover:bg-gray-50 text-xl font-bold"
-                  >-</button>
+                  <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-sm hover:bg-gray-50 text-xl font-bold">-</button>
                   <span className="w-8 text-center font-bold text-lg">{quantity}</span>
-                  <button 
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-sm hover:bg-gray-50 text-xl font-bold"
-                  >+</button>
+                  <button onClick={() => setQuantity(quantity + 1)} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-sm hover:bg-gray-50 text-xl font-bold">+</button>
                 </div>
-                
-                <button 
-                  onClick={confirmAdd}
-                  className="flex-1 text-white font-bold py-4 rounded-2xl shadow-lg transition-transform active:scale-[0.98]"
-                  style={{ backgroundColor: store.theme_color }}
-                >
-                  Adicionar • {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                    (selectedProduct.is_promo && selectedProduct.promo_price ? selectedProduct.promo_price : (selectedVariant ? selectedVariant.price : selectedProduct.price)) * quantity
-                  )}
+                <button onClick={confirmAdd} className="flex-1 text-white font-bold py-4 rounded-2xl shadow-lg transition-transform active:scale-[0.98]" style={{ backgroundColor: store.theme_color }}>
+                  {editingItemId ? 'Atualizar Item' : 'Adicionar'} • {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((selectedProduct.is_promo && selectedProduct.promo_price ? selectedProduct.promo_price : (selectedVariant ? selectedVariant.price : selectedProduct.price)) * quantity)}
                 </button>
               </div>
             </div>
@@ -242,31 +199,19 @@ export default function ProductList({ store, products, categories }: { store: an
         </div>
       )}
 
-      {/* BOTAO FLUTUANTE DE CARRINHO */}
       {totalItems > 0 && (
         <div className="fixed bottom-6 w-full max-w-md px-5 z-50">
-          <button 
-            onClick={() => setIsCartOpen(true)}
-            className="w-full text-white shadow-2xl flex items-center justify-between px-6 py-5 rounded-[24px] transform transition hover:-translate-y-1 active:translate-y-0 animate-in slide-in-from-bottom-4 duration-500"
-            style={{ backgroundColor: store.theme_color }}
-          >
+          <button onClick={() => setIsCartOpen(true)} className="w-full text-white shadow-2xl flex items-center justify-between px-6 py-5 rounded-[24px] transform transition hover:-translate-y-1 active:translate-y-0 animate-in slide-in-from-bottom-4 duration-500" style={{ backgroundColor: store.theme_color }}>
             <div className="flex items-center gap-4">
                <div className="bg-white/20 px-3 py-1 rounded-lg font-black text-sm">{totalItems}</div>
                <span className="font-bold tracking-tight">Ver minha sacola</span>
             </div>
-            <span className="font-black">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice)}
-            </span>
+            <span className="font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPrice)}</span>
           </button>
         </div>
       )}
 
-      {/* SACOLA DE COMPRAS (DRAWER) */}
-      <CartSheet 
-        isOpen={isCartOpen} 
-        onClose={() => setIsCartOpen(false)} 
-        store={store}
-      />
+      <CartSheet isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} store={store} onEditItem={handleEditCartItem} />
     </>
   );
 }

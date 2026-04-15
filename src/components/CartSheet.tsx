@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useCart } from '@/context/CartContext';
 import { X, Trash2, MapPin, Phone, User, CreditCard, ChevronRight, Pencil, RotateCcw } from 'lucide-react';
 import { calculateDeliveryDistance, getDeliveryFee } from '@/lib/delivery';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-client';
 
 interface CartSheetProps {
   isOpen: boolean;
@@ -14,6 +14,7 @@ interface CartSheetProps {
 }
 
 export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSheetProps) {
+  const supabase = createSupabaseBrowserClient();
   const { cart, totalPrice: cartTotal, updateQuantity, removeFromCart, clearCart } = useCart();
   const [step, setStep] = useState<'items' | 'checkout'>('items');
   const [loading, setLoading] = useState(false);
@@ -37,14 +38,25 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
 
   useEffect(() => {
     async function checkUser() {
+      if (!isOpen) return; // Só busca quando a sacola abre
+      
+      console.log('🔍 CartSheet aberta, verificando autenticação...');
       const { data: { user } } = await supabase.auth.getUser();
+      
       if (user) {
+        console.log('✅ Usuário identificado:', user.id);
         setUserId(user.id);
-        const { data: profile } = await supabase.from('customer_profiles').select('*').eq('id', user.id).single();
+        const { data: profile, error: profileError } = await supabase.from('customer_profiles').select('*').eq('id', user.id).single();
+        
+        if (profileError) {
+          console.error('❌ Erro ao buscar perfil:', profileError);
+        }
+
         if (profile) {
+          console.log('📋 Perfil encontrado:', profile);
           setSavedProfile(profile);
-          setUserId(user.id);
           
+          // Só ativa o "Endereço Salvo" se houver uma rua cadastrada
           if (profile.address_street) {
             setUseSavedAddress(true);
             setCustomerName(profile.full_name || '');
@@ -59,15 +71,18 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
 
             // Auto-calcula frete para o endereço salvo
             if (profile.cep && store.has_distance_delivery) {
+               console.log('🚚 Calculando frete automático para CEP:', profile.cep);
                const distance = await calculateDeliveryDistance(profile.cep);
                if (distance !== null) setDeliveryFee(getDeliveryFee(distance));
             }
           }
         }
+      } else {
+        console.log('ℹ️ Nenhum usuário logado na sacola.');
       }
     }
     checkUser();
-  }, [supabase, store.has_distance_delivery]);
+  }, [isOpen, store.has_distance_delivery]);
 
   const totalPriceWithDelivery = cartTotal + (deliveryFee || 0);
 

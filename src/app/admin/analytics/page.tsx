@@ -11,8 +11,10 @@ import {
   Download,
   CheckCircle2,
   XCircle,
-  Clock
+  Clock,
+  Printer
 } from 'lucide-react';
+import AnalyticsCharts from '@/components/admin/AnalyticsCharts';
 
 export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
   const params = await searchParams;
@@ -50,6 +52,27 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const canceledOrders = allOrders?.filter(o => o.status === 'canceled') || [];
   const totalRevenue = finishedOrders.reduce((acc, o) => acc + (o.total_amount || 0), 0);
   const averageTicket = finishedOrders.length > 0 ? totalRevenue / finishedOrders.length : 0;
+
+  // Processar dados para Gráficos
+  const hourlyMap = new Array(24).fill(0);
+  const weeklyMap = new Array(7).fill(0); // 0=Dom, 1=Seg...
+  
+  allOrders.forEach(order => {
+    const date = new Date(order.created_at);
+    hourlyMap[date.getHours()]++;
+    weeklyMap[date.getDay()]++;
+  });
+
+  const hourlyData = hourlyMap.map((count, hour) => ({
+    hour: `${hour.toString().padStart(2, '0')}h`,
+    count
+  }));
+
+  const weekdayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const weeklyData = [1, 2, 3, 4, 5, 6, 0].map(dayIdx => ({
+    day: weekdayNames[dayIdx],
+    count: weeklyMap[dayIdx]
+  }));
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-8">
@@ -102,6 +125,13 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
           bg="bg-red-500/10"
         />
       </div>
+
+      {/* Seção de Inteligência / Gráficos */}
+      <AnalyticsCharts 
+        hourlyData={hourlyData} 
+        weeklyData={weeklyData} 
+        themeColor={restaurant.theme_color || '#f97316'} 
+      />
 
       {/* Tabela de Histórico */}
       <div className="bg-gray-900 border border-gray-800 rounded-3xl overflow-hidden">

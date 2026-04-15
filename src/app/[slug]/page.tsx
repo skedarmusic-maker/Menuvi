@@ -136,13 +136,19 @@ export default async function StorePage({
               )}
             </div>
           </div>
-          <div className="pb-2 text-white">
-            <h1 className="text-2xl font-bold leading-tight shadow-black/50 drop-shadow-md">{store.name}</h1>
-            <div className="flex items-center gap-2 text-sm mt-1 font-medium">
+          <div className="pb-2 text-white flex-1 min-w-0">
+            <h1 className="text-2xl font-black leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] filter">
+              {store.name}
+            </h1>
+            <div className="flex items-center gap-2 text-sm mt-1 font-bold">
               {store.is_open ? (
-                <span className="flex items-center text-green-400 drop-shadow-sm"><Clock className="w-4 h-4 mr-1" /> Aberto agora</span>
+                <span className="flex items-center text-green-400 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+                  <Clock className="w-4 h-4 mr-1" /> Aberto agora
+                </span>
               ) : (
-                <span className="flex items-center text-red-400 drop-shadow-sm"><Clock className="w-4 h-4 mr-1" /> Fechado</span>
+                <span className="flex items-center text-red-400 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
+                  <Clock className="w-4 h-4 mr-1" /> Fechado
+                </span>
               )}
             </div>
           </div>

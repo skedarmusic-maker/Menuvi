@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
-import { Plus, X, Search, MoreVertical, Loader2, Calendar } from 'lucide-react';
+import { Plus, X, Search, MoreVertical, Loader2, Calendar, MapPin } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function StoreManager({ initialStores }: { initialStores: any[] }) {
@@ -71,6 +71,13 @@ export default function StoreManager({ initialStores }: { initialStores: any[] }
     }
   };
 
+  const toggleDelivery = async (id: string, current: boolean) => {
+    const { error } = await supabase.from('restaurants').update({ has_distance_delivery: !current }).eq('id', id);
+    if (!error) {
+      setStores(prev => prev.map(s => s.id === id ? { ...s, has_distance_delivery: !current } : s));
+    }
+  };
+
   const filteredStores = stores.filter(s => s.name.toLowerCase().includes(search.toLowerCase()) || s.slug.includes(search.toLowerCase()));
 
   return (
@@ -102,6 +109,7 @@ export default function StoreManager({ initialStores }: { initialStores: any[] }
               <th className="px-6 py-4">Restaurante / Slug</th>
               <th className="px-6 py-4">WhatsApp</th>
               <th className="px-6 py-4">Vencimento (Plano)</th>
+              <th className="px-6 py-4">Recursos</th>
               <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4 text-right">Ações</th>
             </tr>
@@ -119,6 +127,15 @@ export default function StoreManager({ initialStores }: { initialStores: any[] }
                     <Calendar className="w-4 h-4" />
                     {new Date(store.expires_at).toLocaleDateString('pt-BR')}
                   </div>
+                </td>
+                <td className="px-6 py-4">
+                  <button 
+                    onClick={() => toggleDelivery(store.id, store.has_distance_delivery)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black border transition-all ${store.has_distance_delivery ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-400' : 'bg-gray-800 border-gray-700 text-gray-600'}`}
+                  >
+                    <MapPin className="w-3 h-3" />
+                    {store.has_distance_delivery ? 'FRETE API ATIVO' : 'ATIVAR FRETE API'}
+                  </button>
                 </td>
                 <td className="px-6 py-4">
                   {store.is_active ? (
