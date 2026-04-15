@@ -95,6 +95,41 @@ export default function CustomerAccountPage() {
             <p className="text-gray-500 text-sm">{user.email}</p>
           </div>
         </div>
+        
+        {/* Programa de Fidelidade */}
+        <section className="bg-gray-900 border border-orange-500/30 rounded-[32px] p-6 text-white relative overflow-hidden shadow-xl shadow-orange-500/10">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full -mr-16 -mt-16 blur-3xl" />
+          
+          <div className="relative z-10 space-y-4">
+             <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase tracking-widest text-orange-400">Cartão Fidelidade</h3>
+                <span className="text-[10px] bg-orange-500 px-2 py-0.5 rounded-full font-black uppercase">Marmita Grátis</span>
+             </div>
+             
+             <div>
+                <p className="text-2xl font-black">{profile?.loyalty_points || 0} / 10</p>
+                <p className="text-xs text-gray-400">Pedidos concluídos neste restaurante</p>
+             </div>
+
+             {/* Barra de Progresso */}
+             <div className="h-3 bg-white/10 rounded-full overflow-hidden flex gap-1 p-0.5">
+                {[...Array(10)].map((_, i) => (
+                  <div 
+                    key={i} 
+                    className={`flex-1 rounded-full transition-all duration-500 ${
+                      i < (profile?.loyalty_points || 0) ? 'bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.5)]' : 'bg-white/5'
+                    }`} 
+                  />
+                ))}
+             </div>
+
+             <p className="text-[11px] font-medium text-gray-300 italic">
+                {(profile?.loyalty_points || 0) >= 10 
+                  ? "🎉 PARABÉNS! Você ganhou uma marmita grátis! Peça agora e informe o restaurante." 
+                  : `Faltam apenas ${10 - (profile?.loyalty_points || 0)} pedidos para você ganhar a sua próxima marmita grátis!`}
+             </p>
+          </div>
+        </section>
 
         {/* Endereço Salvo */}
         <section className="space-y-4">

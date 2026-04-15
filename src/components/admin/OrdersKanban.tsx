@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase-client';
-import { Clock, User, MapPin, Package, Truck, CheckCircle, XCircle, ChevronDown, MessageCircle, Paperclip, Eye, Upload, Loader2, FileText } from 'lucide-react';
+import { Clock, User, MapPin, Package, Truck, CheckCircle, XCircle, ChevronDown, MessageCircle, Paperclip, Eye, Upload, Loader2, FileText, Volume2, VolumeX, Printer } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 import Image from 'next/image';
 
 const STATUS_CONFIG = {
@@ -36,6 +37,8 @@ interface Order {
   pix_confirmed: boolean;
   pix_receipt_url: string | null;
   order_items: OrderItem[];
+  driver_id: string | null;
+  customer_id: string | null;
 }
 
 const NEXT_STATUS: Record<string, OrderStatus> = {
@@ -46,9 +49,63 @@ const NEXT_STATUS: Record<string, OrderStatus> = {
 
 export default function OrdersKanban({ initialOrders }: { initialOrders: Order[] }) {
   const router = useRouter();
-  const supabase = createSupabaseBrowserClient();
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [soundEnabled, setSoundEnabled] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Busca entregadores
+  useEffect(() => {
+     async function loadDrivers() {
+        const { data } = await supabase.from('drivers').select('*').eq('is_active', true);
+        setDrivers(data || []);
+     }
+     loadDrivers();
+  }, [supabase]);
+
+  // Monitoramento em tempo real
+  useEffect(() => {
+    const channel = supabase
+      .channel('orders-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        async (payload) => {
+          console.log('🔔 Novo pedido recebido via Realtime:', payload.new);
+          
+          // Busca os itens do pedido que acabou de chegar
+          const { data: newOrderData } = await supabase
+            .from('orders')
+            .select('*, order_items(*, products(name))')
+            .eq('id', payload.new.id)
+            .single();
+
+          if (newOrderData) {
+            setOrders((prev) => [newOrderData as Order, ...prev]);
+            
+            // Tocar som se habilitado
+            if (soundEnabled && audioRef.current) {
+               audioRef.current.play().catch(e => console.log('Erro ao tocar som:', e));
+            }
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders' },
+        (payload) => {
+          setOrders((prev) => 
+            prev.map(o => o.id === payload.new.id ? { ...o, ...payload.new } : o)
+          );
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, soundEnabled]);
 
   const updateStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
@@ -58,6 +115,15 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
         .eq('id', orderId);
 
       if (error) throw error;
+
+      // Lógica de Fidelidade: Se o pedido for finalizado e tiver cliente, adiciona ponto
+      if (newStatus === 'finished') {
+        const order = orders.find(o => o.id === orderId);
+        if (order?.customer_id) {
+          console.log('🎁 Adicionando ponto de fidelidade ao cliente:', order.customer_id);
+          await supabase.rpc('increment_loyalty_points', { customer_uuid: order.customer_id });
+        }
+      }
 
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
@@ -117,10 +183,32 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
     }
   };
 
+  const assignDriver = async (orderId: string, driverId: string) => {
+    const { error } = await supabase.from('orders').update({ driver_id: driverId }).eq('id', orderId);
+    if (!error) {
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, driver_id: driverId } : o));
+    }
+  };
+
   const byStatus = (status: OrderStatus) => orders.filter((o) => o.status === status);
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+    <div className="space-y-6">
+      {/* Som e Controles */}
+      <div className="flex items-center justify-end">
+        <button 
+          onClick={() => setSoundEnabled(!soundEnabled)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-black transition-all ${
+            soundEnabled ? 'bg-green-500 text-white shadow-lg shadow-green-500/20' : 'bg-gray-800 text-gray-400'
+          }`}
+        >
+          {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          {soundEnabled ? 'SOM ATIVADO' : 'SOM DESATIVADO'}
+        </button>
+        <audio ref={audioRef} src="/notification.mp3" preload="auto" />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
       {(['new', 'accepted', 'delivering', 'finished'] as OrderStatus[]).map((status) => {
         const config = STATUS_CONFIG[status];
         const statusOrders = byStatus(status);
@@ -154,6 +242,8 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
                   onAdvance={() => NEXT_STATUS[order.status] && updateStatus(order.id, NEXT_STATUS[order.status])}
                   onCancel={() => updateStatus(order.id, 'canceled')}
                   onUploadReceipt={(file) => handleReceiptUpload(order.id, file)}
+                  drivers={drivers}
+                  onAssignDriver={(driverId) => assignDriver(order.id, driverId)}
                 />
               ))}
             </div>
@@ -164,7 +254,7 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
   );
 }
 
-function OrderCard({ order, isExpanded, onToggle, onTogglePix, onAdvance, onCancel, onUploadReceipt }: {
+function OrderCard({ order, isExpanded, onToggle, onTogglePix, onAdvance, onCancel, onUploadReceipt, drivers, onAssignDriver }: {
   order: Order;
   isExpanded: boolean;
   onToggle: () => void;
@@ -172,7 +262,75 @@ function OrderCard({ order, isExpanded, onToggle, onTogglePix, onAdvance, onCanc
   onAdvance: () => void;
   onCancel: () => void;
   onUploadReceipt: (file: File) => void;
+  drivers: any[];
+  onAssignDriver: (driverId: string) => void;
 }) {
+  const handlePrint = () => {
+    const win = window.open('', '_blank');
+    if (win) {
+      win.document.write(`
+        <html>
+          <head>
+            <title>Pedido #${order.id.slice(0, 6)}</title>
+            <style>
+              @page { margin: 0; }
+              body { 
+                font-family: 'Courier New', Courier, sans-serif; 
+                width: 80mm; 
+                padding: 5mm; 
+                margin: 0;
+                font-size: 13px;
+                line-height: 1.2;
+              }
+              .text-center { text-align: center; }
+              .font-bold { font-weight: bold; }
+              .divider { border-bottom: 1px dashed #000; margin: 8px 0; }
+              .item { display: flex; justify-content: space-between; margin-bottom: 4px; }
+              .obs { font-size: 11px; font-style: italic; margin-left: 10px; margin-bottom: 6px; }
+              .total { font-size: 18px; margin-top: 12px; }
+            </style>
+          </head>
+          <body>
+            <div class="text-center font-bold" style="font-size: 20px;">MENÚVI - PEDIDO</div>
+            <div class="text-center font-bold">#${order.id.slice(0, 6)}</div>
+            <div class="divider"></div>
+            <p><b>Data:</b> ${new Date(order.created_at).toLocaleString('pt-BR')}</p>
+            <p><b>Cliente:</b> ${order.customer_name}</p>
+            <p><b>Tel:</b> ${order.customer_phone}</p>
+            <p><b>Endereço:</b><br/> ${order.customer_address}</p>
+            <p><b>Pagamento:</b> ${order.payment_method.toUpperCase()}</p>
+            <div class="divider"></div>
+            <div class="font-bold">ITENS:</div>
+            ${order.order_items.map(it => `
+              <div class="item">
+                <span class="font-bold">${it.quantity}x ${it.products?.name}</span>
+                <span>R$ ${(it.unit_price * it.quantity).toFixed(2)}</span>
+              </div>
+              ${it.observations ? `<div class="obs">↳ OBS: ${it.observations}</div>` : ''}
+            `).join('')}
+            <div class="divider"></div>
+            <div class="item font-bold total">
+              <span>TOTAL:</span>
+              <span>R$ ${Number(order.total_amount).toFixed(2)}</span>
+            </div>
+            <div class="divider"></div>
+            <div class="text-center" style="margin-top: 30px; font-size: 10px;">
+              Gerado por Menúvi Digital<br/>
+              Obrigado pela preferência!
+            </div>
+            <script>
+              setTimeout(() => {
+                window.print();
+                window.close();
+              }, 500);
+            </script>
+          </body>
+        </html>
+      `);
+      win.document.close();
+    }
+  };
+
   const config = STATUS_CONFIG[order.status];
   const canAdvance = !!NEXT_STATUS[order.status];
   const timeAgo = getTimeAgo(order.created_at);
@@ -200,11 +358,21 @@ function OrderCard({ order, isExpanded, onToggle, onTogglePix, onAdvance, onCanc
                 </span>
               )}
             </div>
-            <p className="text-white font-bold text-sm truncate">{order.customer_name}</p>
+            <div className="flex items-center gap-2">
+               <p className="text-white font-bold text-sm truncate">{order.customer_name}</p>
+               <button 
+                 onClick={(e) => { e.stopPropagation(); handlePrint(); }}
+                 className="p-1 px-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white transition-all flex items-center gap-1"
+               >
+                 <Printer className="w-3 h-3" />
+                 <span className="text-[10px] font-bold">IMPRIMIR</span>
+               </button>
+            </div>
             <p className="text-orange-400 font-black mt-1">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total_amount)}
             </p>
           </div>
+          <div id={`print-ticket-${order.id}`} className="hidden"></div>
           <div className="flex items-center gap-1 text-gray-600 shrink-0">
             <Clock className="w-3.5 h-3.5" />
             <span className="text-xs">{timeAgo}</span>
@@ -247,6 +415,23 @@ function OrderCard({ order, isExpanded, onToggle, onTogglePix, onAdvance, onCanc
               <MessageCircle className="w-4 h-4" />
               {order.customer_phone}
             </a>
+          </div>
+
+          {/* Seleção de Entregador */}
+          <div className="pt-2 border-t border-gray-800">
+             <label className="text-[10px] font-black text-gray-500 uppercase flex items-center gap-1.5 mb-2">
+                <Truck className="w-3 h-3" /> Entregador
+             </label>
+             <select 
+               value={order.driver_id || ''} 
+               onChange={(e) => onAssignDriver(e.target.value)}
+               className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-orange-500/20"
+             >
+                <option value="">Aguardando Motoboy...</option>
+                {drivers.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+             </select>
           </div>
 
           {/* Seção de Comprovante PIX */}
