@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { createSupabaseBrowserClient } from '@/lib/supabase-client';
-import { Save, Loader2, Store, Phone, Palette, Globe, Image as ImageIcon, Camera, Trash2 } from 'lucide-react';
+import { Save, Loader2, Store, Phone, Palette, Globe, Image as ImageIcon, Camera, Trash2, MapPin, Clock, CreditCard } from 'lucide-react';
 
 const THEME_COLORS = [
   { label: 'Vermelho', value: '#ef4444' },
@@ -26,6 +26,9 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
   const [themeColor, setThemeColor] = useState(restaurant.theme_color || '#ef4444');
   const [logoUrl, setLogoUrl] = useState(restaurant.logo_url || '');
   const [bannerUrl, setBannerUrl] = useState(restaurant.banner_url || '');
+  const [address, setAddress] = useState(restaurant.address || '');
+  const [openingHours, setOpeningHours] = useState(restaurant.opening_hours || '');
+  const [paymentMethods, setPaymentMethods] = useState(restaurant.payment_methods || '');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -73,6 +76,9 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
         theme_color: themeColor,
         logo_url: logoUrl,
         banner_url: bannerUrl,
+        address,
+        opening_hours: openingHours,
+        payment_methods: paymentMethods,
       })
       .eq('id', restaurant.id);
 
@@ -185,6 +191,48 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
           />
         </div>
         <p className="text-gray-600 text-xs mt-2">Os pedidos serão enviados para este número via WhatsApp.</p>
+      </div>
+
+      {/* Endereço */}
+      <div>
+        <label className="text-gray-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2 mb-3">
+          <MapPin className="w-4 h-4" /> Endereço Completo
+        </label>
+        <textarea
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="Rua Exemplo, 123 - Bairro, Cidade - UF"
+          rows={2}
+          className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all resize-none"
+        />
+      </div>
+
+      {/* Horários */}
+      <div>
+        <label className="text-gray-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2 mb-3">
+          <Clock className="w-4 h-4" /> Horário de Funcionamento
+        </label>
+        <textarea
+          value={openingHours}
+          onChange={(e) => setOpeningHours(e.target.value)}
+          placeholder="Ex: Seg a Sex: 11h às 22h / Sábado: 18h às 23h"
+          rows={2}
+          className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all resize-none"
+        />
+      </div>
+
+      {/* Pagamento */}
+      <div>
+        <label className="text-gray-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2 mb-3">
+          <CreditCard className="w-4 h-4" /> Formas de Pagamento
+        </label>
+        <input
+          type="text"
+          value={paymentMethods}
+          onChange={(e) => setPaymentMethods(e.target.value)}
+          placeholder="Ex: Cartões, Pix e Dinheiro"
+          className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all"
+        />
       </div>
 
       {/* Cor do Tema */}

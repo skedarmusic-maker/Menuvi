@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
-import { Clock, Search } from "lucide-react";
+import { Clock, Search, MapPin, CreditCard, Info } from "lucide-react";
 import ProductList from "@/components/ProductList";
 
 // Função para buscar dados da loja
@@ -141,6 +141,65 @@ export default async function StorePage({
         products={store.products || []} 
         categories={store.categories || []} 
       />
+
+      {/* RODAPÉ COM INFORMAÇÕES DA LOJA */}
+      <footer className="mt-12 px-5 py-10 bg-gray-50 border-t border-gray-100">
+        <div className="max-w-screen-md mx-auto space-y-8">
+          
+          <div className="flex flex-col items-center text-center">
+            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 mb-3">
+              <Info className="w-6 h-6" style={{ color: store.theme_color }} />
+            </div>
+            <h2 className="text-xl font-black text-gray-900">Sobre a Loja</h2>
+            <p className="text-gray-500 text-sm mt-1">Conheça nosso espaço e formas de atendimento</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Endereço */}
+            {store.address && (
+              <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex gap-4 items-start">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${store.theme_color}10`, color: store.theme_color }}>
+                  <MapPin className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Localização</h3>
+                  <p className="text-gray-700 text-sm font-medium leading-relaxed">{store.address}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Horário */}
+            {store.opening_hours && (
+              <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex gap-4 items-start">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${store.theme_color}10`, color: store.theme_color }}>
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Funcionamento</h3>
+                  <p className="text-gray-700 text-sm font-medium whitespace-pre-line leading-relaxed">{store.opening_hours}</p>
+                </div>
+              </div>
+            )}
+
+            {/* Pagamento */}
+            {store.payment_methods && (
+              <div className="bg-white p-5 rounded-3xl border border-gray-100 shadow-sm flex gap-4 items-start md:col-span-2">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${store.theme_color}10`, color: store.theme_color }}>
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Formas de Pagamento</h3>
+                  <p className="text-gray-700 text-sm font-medium leading-relaxed">{store.payment_methods}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-8 text-center">
+            <p className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em]">Desenvolvido por Menuvi App</p>
+          </div>
+        </div>
+      </footer>
 
     </main>
   );
