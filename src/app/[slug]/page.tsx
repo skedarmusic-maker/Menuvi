@@ -5,13 +5,30 @@ import ProductList from "@/components/ProductList";
 
 // Função para buscar dados da loja
 async function getStoreData(slug: string) {
-  const { data: restaurant } = await supabase
+  console.log('🔍 Buscando dados da loja para o slug:', slug);
+
+  // Busca o restaurante e suas categorias com os produtos dentro
+  const { data: restaurant, error } = await supabase
     .from("restaurants")
-    .select("*, categories(*), products(*)")
+    .select(`
+      *,
+      categories (
+        *,
+        products (*)
+      )
+    `)
     .eq("slug", slug)
     .single();
 
-  if (!restaurant || !restaurant.products || restaurant.products.length === 0) {
+  if (error) {
+    console.error('❌ Erro Supabase ao buscar loja:', error);
+  }
+
+  // Achata os produtos de todas as categorias para um array único para o ProductList
+  const allProducts = restaurant?.categories?.flatMap((cat: any) => cat.products || []) || [];
+
+  if (!restaurant) {
+    console.log('⚠️ Loja não encontrada para o slug:', slug);
     return {
       name: "Burger & Co.",
       slug: slug,
@@ -55,7 +72,10 @@ async function getStoreData(slug: string) {
     };
   }
   
-  return restaurant;
+  return {
+    ...restaurant,
+    products: allProducts
+  };
 }
 
 export default async function StorePage({
