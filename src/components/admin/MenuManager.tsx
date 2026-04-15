@@ -6,7 +6,7 @@ import { createSupabaseBrowserClient } from '@/lib/supabase-client';
 import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, Loader2, ImagePlus, X, Tag } from 'lucide-react';
 
 interface Category { id: string; name: string; order_index: number; restaurant_id: string; }
-interface Product { id: string; category_id: string; name: string; description: string; price: number; image_url: string | null; is_active: boolean; is_featured: boolean; is_promo?: boolean; promo_price?: number; variants?: any[]; }
+interface Product { id: string; category_id: string; name: string; description: string; price: number; image_url: string | null; is_active: boolean; is_available: boolean; is_featured: boolean; is_promo?: boolean; promo_price?: number; available_days?: number[]; variants?: any[]; }
 
 export default function MenuManager({
   restaurantId,
@@ -93,13 +93,13 @@ export default function MenuManager({
     }
   };
 
-  const toggleActive = async (product: Product) => {
+  const toggleAvailable = async (product: Product) => {
     try {
-      const { error } = await supabase.from('products').update({ is_active: !product.is_active }).eq('id', product.id);
+      const { error } = await supabase.from('products').update({ is_available: !product.is_available }).eq('id', product.id);
       if (error) throw error;
-      setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, is_active: !p.is_active } : p)));
+      setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, is_available: !p.is_available } : p)));
     } catch (err: any) {
-      alert('Erro ao alterar status: ' + err.message);
+      alert('Erro ao alterar disponibilidade: ' + err.message);
     }
   };
 
@@ -147,7 +147,13 @@ export default function MenuManager({
                       <p className="text-orange-400 font-bold text-sm mt-0.5">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}</p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0">
-                      <button onClick={() => toggleActive(product)} className={`text-xs font-bold px-3 py-1.5 rounded-full border ${product.is_active ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-gray-800 border-gray-700 text-gray-500'}`}>{product.is_active ? 'Ativo' : 'Inativo'}</button>
+                      <button 
+                        onClick={() => toggleAvailable(product)} 
+                        title={product.is_available ? 'Pausar venda' : 'Ativar venda'}
+                        className={`p-2 rounded-lg transition-colors ${product.is_available ? 'text-green-500 hover:bg-green-500/10' : 'text-gray-600 hover:bg-gray-800'}`}
+                      >
+                        {product.is_available ? <div className="w-5 h-5 bg-green-500 rounded-full border-2 border-white shadow-sm" /> : <div className="w-5 h-5 bg-gray-700 rounded-full border-2 border-gray-600 shadow-sm" />}
+                      </button>
                       <button onClick={() => setProductModal({ open: true, editing: product, categoryId: product.category_id })} className="p-2 hover:bg-gray-800 rounded-lg text-gray-500"><Pencil className="w-4 h-4" /></button>
                       <button onClick={() => deleteProduct(product.id)} className="p-2 hover:bg-red-500/10 rounded-lg text-gray-500"><Trash2 className="w-4 h-4" /></button>
                     </div>
@@ -187,7 +193,24 @@ function ProductModal({ editing, onSave, onClose }: { editing: Product | null; o
   const [variants, setVariants] = useState<{ name: string; price: string }[]>(editing?.variants?.map(v => ({ name: v.name, price: v.price.toString() })) ?? []);
   const [isPromo, setIsPromo] = useState(editing?.is_promo ?? false);
   const [promoPrice, setPromoPrice] = useState(editing?.promo_price?.toString() ?? '');
+  const [availableDays, setAvailableDays] = useState<number[]>(editing?.available_days ?? []);
   const [loading, setLoading] = useState(false);
+
+  const daysOfWeek = [
+    { id: 0, label: 'Dom' },
+    { id: 1, label: 'Seg' },
+    { id: 2, label: 'Ter' },
+    { id: 3, label: 'Qua' },
+    { id: 4, label: 'Qui' },
+    { id: 5, label: 'Sex' },
+    { id: 6, label: 'Sáb' },
+  ];
+
+  const toggleDay = (day: number) => {
+    setAvailableDays(prev => 
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
+    );
+  };
 
   const addVariant = () => setVariants([...variants, { name: '', price: '' }]);
   const removeVariant = (index: number) => setVariants(variants.filter((_, i) => i !== index));
@@ -210,7 +233,20 @@ function ProductModal({ editing, onSave, onClose }: { editing: Product | null; o
     setLoading(true);
     const processedVariants = variants.map(v => ({ name: v.name, price: parseFloat(v.price.replace(',', '.')) })).filter(v => v.name && !isNaN(v.price));
     const finalPrice = processedVariants.length > 0 ? processedVariants[0].price : parseFloat(price.replace(',', '.'));
-    await onSave({ name, description, price: finalPrice, image_url: editing?.image_url ?? null, imageFile: imageFile ?? undefined, is_active: true, is_featured: false, is_promo: isPromo, promo_price: isPromo ? parseFloat(promoPrice.replace(',', '.')) : null, variants: processedVariants });
+    await onSave({ 
+      name, 
+      description, 
+      price: finalPrice, 
+      image_url: editing?.image_url ?? null, 
+      imageFile: imageFile ?? undefined, 
+      is_active: true, 
+      is_available: editing ? editing.is_available : true,
+      is_featured: false, 
+      is_promo: isPromo, 
+      promo_price: isPromo ? parseFloat(promoPrice.replace(',', '.')) : null, 
+      available_days: availableDays,
+      variants: processedVariants 
+    });
     setLoading(false);
   };
 
@@ -247,8 +283,11 @@ function ProductModal({ editing, onSave, onClose }: { editing: Product | null; o
             <div className="space-y-2">
               {variants.map((variant, index) => (
                 <div key={index} className="flex gap-2">
-                  <input type="text" value={variant.name} onChange={(e) => updateVariant(index, 'name', e.target.value)} placeholder="Ex: P, M, G" className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-orange-500" />
-                  <div className="relative w-28"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span><input type="text" value={variant.price} onChange={(e) => updateVariant(index, 'price', e.target.value)} placeholder="0,00" className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-8 pr-3 py-2 text-sm text-white outline-none focus:border-orange-500" /></div>
+                  <input type="text" value={variant.name} onChange={(e) => updateVariant(index, 'name', e.target.value)} placeholder="Ex: P, M, G" className="w-32 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-orange-500" />
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
+                    <input type="text" value={variant.price} onChange={(e) => updateVariant(index, 'price', e.target.value)} placeholder="0,00" className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-8 pr-3 py-2 text-sm text-white outline-none focus:border-orange-500" />
+                  </div>
                   <button onClick={() => removeVariant(index)} className="p-2 text-gray-600 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                 </div>
               ))}
@@ -269,6 +308,29 @@ function ProductModal({ editing, onSave, onClose }: { editing: Product | null; o
               <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-500 font-black">R$</span><input type="text" inputMode="decimal" value={promoPrice} onChange={(e) => setPromoPrice(e.target.value)} placeholder="0,00" className="w-full bg-gray-950 border border-orange-500/30 rounded-xl pl-12 pr-4 py-3 text-orange-400 font-black outline-none transition-all" /></div>
             </div>
           )}
+        </div>
+
+        <div className="space-y-3 pt-2">
+          <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Exibição Programada (Cardápio Semanal)</label>
+          <div className="flex flex-wrap gap-2">
+            {daysOfWeek.map((day) => (
+              <button
+                key={day.id}
+                type="button"
+                onClick={() => toggleDay(day.id)}
+                className={`w-10 h-10 rounded-xl text-[10px] font-black uppercase transition-all flex items-center justify-center border-2 ${
+                  availableDays.includes(day.id) 
+                    ? 'bg-orange-500 border-orange-400 text-white shadow-lg shadow-orange-500/20' 
+                    : 'bg-gray-800 border-gray-700 text-gray-500'
+                }`}
+              >
+                {day.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-600 font-medium pl-1">
+            {availableDays.length === 0 ? 'Exibido todos os dias' : 'Exibido apenas nos dias selecionados'}
+          </p>
         </div>
 
         <button disabled={loading || !name} onClick={handleSave} className="w-full mt-4 bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-orange-500/10 flex items-center justify-center gap-2 sticky bottom-0">

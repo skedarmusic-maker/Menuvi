@@ -26,9 +26,23 @@ async function getStoreData(slug: string) {
     console.error('❌ Erro Supabase ao buscar loja:', error);
   }
 
+  const currentDay = new Date().getDay(); // 0 = Domingo, 1 = Segunda, etc.
+
   // Achata os produtos de todas as categorias para um array único para o ProductList
   const allProducts = restaurant?.categories?.flatMap((cat: any) =>
-    (cat.products || []).map((p: any) => ({ ...p, category_id: cat.id }))
+    (cat.products || [])
+      .filter((p: any) => {
+        // Regra 1: Disponibilidade Manual
+        if (p.is_available === false) return false;
+
+        // Regra 2: Cardápio Semanal
+        // Se available_days for nulo ou vazio, aparece sempre
+        if (!p.available_days || p.available_days.length === 0) return true;
+
+        // Se houver lista de dias, verifica se o dia atual está nela
+        return p.available_days.includes(currentDay);
+      })
+      .map((p: any) => ({ ...p, category_id: cat.id }))
   ) || [];
 
   const promoProducts = allProducts.filter((p: any) => p.is_promo);
