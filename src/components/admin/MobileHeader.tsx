@@ -33,6 +33,8 @@ export default function MobileHeader({ restaurant }: { restaurant: any }) {
       navigator.clipboard.writeText(shareLink);
       alert('Link copiado para a área de transferência!');
     }
+  };
+
   const handleToggle = async () => {
     setIsUpdating(true);
     try {
