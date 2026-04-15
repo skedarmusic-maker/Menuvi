@@ -126,20 +126,24 @@ export default async function StorePage({
               )}
             </div>
           </div>
-          <div className="pb-2 text-white flex-1 min-w-0">
-            <h1 className="text-2xl font-black leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] filter">
-              {store.name}
-            </h1>
-            <div className="flex items-center gap-2 text-sm mt-1 font-bold">
-              {store.is_open ? (
-                <span className="flex items-center text-green-400 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
-                  <Clock className="w-4 h-4 mr-1" /> Aberto agora
-                </span>
-              ) : (
-                <span className="flex items-center text-red-400 drop-shadow-[0_1px_3px_rgba(0,0,0,0.5)]">
-                  <Clock className="w-4 h-4 mr-1" /> Fechado
-                </span>
-              )}
+          <div className="pb-0 pb-2">
+            <div className="bg-white/90 backdrop-blur-md px-5 py-3 rounded-[24px] shadow-xl border border-white/50 inline-block min-w-[200px]">
+              <h1 className="text-xl font-black text-gray-900 leading-tight">
+                {store.name}
+              </h1>
+              <div className="flex items-center gap-2 text-[11px] mt-1 font-black uppercase tracking-wider">
+                {store.is_open ? (
+                  <span className="flex items-center text-green-600">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse mr-2" />
+                    Aberto agora
+                  </span>
+                ) : (
+                  <span className="flex items-center text-red-500">
+                    <span className="w-2 h-2 bg-red-500 rounded-full mr-2" />
+                    Fechado
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
