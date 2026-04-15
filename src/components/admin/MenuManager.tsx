@@ -21,14 +21,9 @@ export default function MenuManager({
   const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [openCat, setOpenCat] = useState<string | null>(initialCategories[0]?.id ?? null);
-
-  // --- Modal de Produto ---
   const [productModal, setProductModal] = useState<{ open: boolean; editing: Product | null; categoryId: string }>({ open: false, editing: null, categoryId: '' });
-
-  // --- Modal de Categoria ---
   const [catModal, setCatModal] = useState<{ open: boolean; editing: Category | null }>({ open: false, editing: null });
 
-  // ───────── CATEGORIAS ─────────
   const saveCategory = async (name: string) => {
     try {
       if (catModal.editing) {
@@ -42,8 +37,7 @@ export default function MenuManager({
       }
       setCatModal({ open: false, editing: null });
     } catch (err: any) {
-      alert('Erro ao salvar categoria: ' + (err.message || 'Erro desconhecido'));
-      console.error(err);
+      alert('Erro ao salvar categoria: ' + err.message);
     }
   };
 
@@ -59,7 +53,6 @@ export default function MenuManager({
     }
   };
 
-  // ───────── PRODUTOS ─────────
   const saveProduct = async (data: Partial<Product> & { imageFile?: File }) => {
     try {
       const { imageFile, ...rest } = data;
@@ -112,22 +105,16 @@ export default function MenuManager({
 
   return (
     <div className="space-y-4">
-      {/* Botão nova categoria */}
       <div className="flex justify-end">
-        <button
-          onClick={() => setCatModal({ open: true, editing: null })}
-          className="flex items-center gap-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-colors"
-        >
+        <button onClick={() => setCatModal({ open: true, editing: null })} className="flex items-center gap-2 bg-orange-500 hover:bg-orange-400 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-colors">
           <Plus className="w-4 h-4" /> Nova Categoria
         </button>
       </div>
 
-      {/* Lista de Categorias */}
       {categories.length === 0 && (
         <div className="text-center py-16 text-gray-600">
           <Tag className="w-10 h-10 mx-auto mb-3 opacity-30" />
           <p className="font-bold">Nenhuma categoria ainda.</p>
-          <p className="text-sm mt-1">Crie uma categoria para começar a adicionar pratos.</p>
         </div>
       )}
 
@@ -136,71 +123,38 @@ export default function MenuManager({
         const isOpen = openCat === cat.id;
         return (
           <div key={cat.id} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden">
-            {/* Header da Categoria */}
             <div className="flex items-center justify-between px-6 py-4">
               <button onClick={() => setOpenCat(isOpen ? null : cat.id)} className="flex items-center gap-3 flex-1 text-left">
                 <span className="text-white font-bold">{cat.name}</span>
-                <span className="text-gray-600 text-sm">({catProducts.length} itens)</span>
+                <span className="text-gray-600 text-sm">({catProducts.length})</span>
                 {isOpen ? <ChevronUp className="w-4 h-4 text-gray-500 ml-auto" /> : <ChevronDown className="w-4 h-4 text-gray-500 ml-auto" />}
               </button>
               <div className="flex items-center gap-2 ml-4">
-                <button onClick={() => setCatModal({ open: true, editing: cat })} className="p-2 hover:bg-gray-800 rounded-lg text-gray-500 hover:text-gray-300 transition-colors">
-                  <Pencil className="w-4 h-4" />
-                </button>
-                <button onClick={() => deleteCategory(cat.id)} className="p-2 hover:bg-red-500/10 rounded-lg text-gray-500 hover:text-red-400 transition-colors">
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <button onClick={() => setCatModal({ open: true, editing: cat })} className="p-2 hover:bg-gray-800 rounded-lg text-gray-500 transition-colors"><Pencil className="w-4 h-4" /></button>
+                <button onClick={() => deleteCategory(cat.id)} className="p-2 hover:bg-red-500/10 rounded-lg text-gray-500 transition-colors"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
 
-            {/* Produtos da Categoria */}
             {isOpen && (
               <div className="border-t border-gray-800 divide-y divide-gray-800">
                 {catProducts.map((product) => (
                   <div key={product.id} className={`flex items-center gap-4 px-6 py-4 ${!product.is_active ? 'opacity-50' : ''}`}>
-                    {/* Imagem */}
                     <div className="w-14 h-14 rounded-xl bg-gray-800 shrink-0 overflow-hidden relative">
-                      {product.image_url ? (
-                        <Image src={product.image_url} alt={product.name} fill className="object-cover" sizes="56px" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-600">
-                          <ImagePlus className="w-6 h-6" />
-                        </div>
-                      )}
+                      {product.image_url ? <Image src={product.image_url} alt={product.name} fill className="object-cover" sizes="56px" /> : <ImagePlus className="w-6 h-6 m-auto mt-4 text-gray-600" />}
                     </div>
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <p className="text-white font-semibold truncate">{product.name}</p>
-                      <p className="text-orange-400 font-bold text-sm mt-0.5">
-                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}
-                      </p>
+                      <p className="text-orange-400 font-bold text-sm mt-0.5">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(product.price)}</p>
                     </div>
-                    {/* Toggle + Ações */}
                     <div className="flex items-center gap-3 shrink-0">
-                      <button
-                        onClick={() => toggleActive(product)}
-                        className={`text-xs font-bold px-3 py-1.5 rounded-full border transition-colors ${product.is_active ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-gray-800 border-gray-700 text-gray-500'}`}
-                      >
-                        {product.is_active ? 'Ativo' : 'Inativo'}
-                      </button>
-                      <button onClick={() => setProductModal({ open: true, editing: product, categoryId: product.category_id })} className="p-2 hover:bg-gray-800 rounded-lg text-gray-500 hover:text-gray-300 transition-colors">
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button onClick={() => deleteProduct(product.id)} className="p-2 hover:bg-red-500/10 rounded-lg text-gray-500 hover:text-red-400 transition-colors">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <button onClick={() => toggleActive(product)} className={`text-xs font-bold px-3 py-1.5 rounded-full border ${product.is_active ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-gray-800 border-gray-700 text-gray-500'}`}>{product.is_active ? 'Ativo' : 'Inativo'}</button>
+                      <button onClick={() => setProductModal({ open: true, editing: product, categoryId: product.category_id })} className="p-2 hover:bg-gray-800 rounded-lg text-gray-500"><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => deleteProduct(product.id)} className="p-2 hover:bg-red-500/10 rounded-lg text-gray-500"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </div>
                 ))}
-
-                {/* Botão Adicionar Produto */}
                 <div className="px-6 py-3">
-                  <button
-                    onClick={() => setProductModal({ open: true, editing: null, categoryId: cat.id })}
-                    className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-orange-400 transition-colors"
-                  >
-                    <Plus className="w-4 h-4" /> Adicionar produto
-                  </button>
+                  <button onClick={() => setProductModal({ open: true, editing: null, categoryId: cat.id })} className="flex items-center gap-2 text-sm font-semibold text-gray-500 hover:text-orange-400 transition-colors"><Plus className="w-4 h-4" /> Adicionar produto</button>
                 </div>
               </div>
             )}
@@ -208,57 +162,29 @@ export default function MenuManager({
         );
       })}
 
-      {/* Modal Categoria */}
-      {catModal.open && (
-        <CategoryModal
-          editing={catModal.editing}
-          onSave={saveCategory}
-          onClose={() => setCatModal({ open: false, editing: null })}
-        />
-      )}
-
-      {/* Modal Produto */}
-      {productModal.open && (
-        <ProductModal
-          editing={productModal.editing}
-          onSave={saveProduct}
-          onClose={() => setProductModal({ open: false, editing: null, categoryId: '' })}
-        />
-      )}
+      {catModal.open && <CategoryModal editing={catModal.editing} onSave={saveCategory} onClose={() => setCatModal({ open: false, editing: null })} />}
+      {productModal.open && <ProductModal editing={productModal.editing} onSave={saveProduct} onClose={() => setProductModal({ open: false, editing: null, categoryId: '' })} />}
     </div>
   );
 }
 
-// ───────── MODAL CATEGORIA ─────────
 function CategoryModal({ editing, onSave, onClose }: { editing: Category | null; onSave: (name: string) => void; onClose: () => void; }) {
   const [name, setName] = useState(editing?.name ?? '');
   return (
     <ModalWrapper title={editing ? 'Editar Categoria' : 'Nova Categoria'} onClose={onClose}>
-      <input
-        autoFocus
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Ex: Burgers, Bebidas..."
-        className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-all"
-      />
-      <button onClick={() => name.trim() && onSave(name.trim())} className="w-full mt-4 bg-orange-500 hover:bg-orange-400 text-white font-bold py-3 rounded-xl transition-colors">
-        Salvar
-      </button>
+      <input autoFocus type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Burgers, Bebidas..." className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500" />
+      <button onClick={() => name.trim() && onSave(name.trim())} className="w-full mt-4 bg-orange-500 hover:bg-orange-400 text-white font-bold py-3 rounded-xl transition-colors">Salvar</button>
     </ModalWrapper>
   );
 }
 
-// ───────── MODAL PRODUTO ─────────
 function ProductModal({ editing, onSave, onClose }: { editing: Product | null; onSave: (data: any) => Promise<void>; onClose: () => void; }) {
   const [name, setName] = useState(editing?.name ?? '');
   const [description, setDescription] = useState(editing?.description ?? '');
   const [price, setPrice] = useState(editing?.price?.toString() ?? '');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(editing?.image_url ?? null);
-  const [variants, setVariants] = useState<{ name: string; price: string }[]>(
-    editing?.variants?.map(v => ({ name: v.name, price: v.price.toString() })) ?? []
-  );
+  const [variants, setVariants] = useState<{ name: string; price: string }[]>(editing?.variants?.map(v => ({ name: v.name, price: v.price.toString() })) ?? []);
   const [isPromo, setIsPromo] = useState(editing?.is_promo ?? false);
   const [promoPrice, setPromoPrice] = useState(editing?.promo_price?.toString() ?? '');
   const [loading, setLoading] = useState(false);
@@ -273,52 +199,29 @@ function ProductModal({ editing, onSave, onClose }: { editing: Product | null; o
 
   const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
   };
 
   const handleSave = async () => {
     if (!name || (!price && variants.length === 0)) return;
     setLoading(true);
-    
-    // Processa variações
-    const processedVariants = variants.map(v => ({
-      name: v.name,
-      price: parseFloat(v.price.replace(',', '.'))
-    })).filter(v => v.name && !isNaN(v.price));
-
-    // O preço principal será o da primeira variação se houver
-    const finalPrice = processedVariants.length > 0 
-      ? processedVariants[0].price 
-      : parseFloat(price.replace(',', '.'));
-
-    await onSave({ 
-      name, 
-      description, 
-      price: finalPrice, 
-      image_url: editing?.image_url ?? null, 
-      imageFile: imageFile ?? undefined, 
-      is_active: true, 
-      is_featured: false,
-      is_promo: isPromo,
-      promo_price: isPromo ? parseFloat(promoPrice.replace(',', '.')) : null,
-      variants: processedVariants
-    });
+    const processedVariants = variants.map(v => ({ name: v.name, price: parseFloat(v.price.replace(',', '.')) })).filter(v => v.name && !isNaN(v.price));
+    const finalPrice = processedVariants.length > 0 ? processedVariants[0].price : parseFloat(price.replace(',', '.'));
+    await onSave({ name, description, price: finalPrice, image_url: editing?.image_url ?? null, imageFile: imageFile ?? undefined, is_active: true, is_featured: false, is_promo: isPromo, promo_price: isPromo ? parseFloat(promoPrice.replace(',', '.')) : null, variants: processedVariants });
     setLoading(false);
   };
 
   return (
     <ModalWrapper title={editing ? 'Editar Produto' : 'Novo Produto'} onClose={onClose}>
-      <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1 pr-2 custom-scrollbar">
-        {/* Upload de imagem */}
+      <div className="space-y-4 max-h-[70vh] overflow-y-auto px-1 pr-2 custom-scrollbar text-left font-sans">
         <div className="relative w-full h-40 bg-gray-800 rounded-xl overflow-hidden border-2 border-dashed border-gray-700 hover:border-orange-500 transition-colors shrink-0">
           {imagePreview ? (
             <>
               <Image src={imagePreview} alt="Preview" fill className="object-cover" sizes="400px" unoptimized />
-              <button onClick={() => { setImageFile(null); setImagePreview(null); }} className="absolute top-2 right-2 bg-black/60 text-white p-1 rounded-full">
-                <X className="w-4 h-4" />
-              </button>
+              <button onClick={() => { setImageFile(null); setImagePreview(null); }} className="absolute top-2 right-2 bg-black/60 text-white p-1 rounded-full"><X className="w-4 h-4" /></button>
             </>
           ) : (
             <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer gap-2 text-gray-500">
@@ -331,107 +234,58 @@ function ProductModal({ editing, onSave, onClose }: { editing: Product | null; o
 
         <div className="space-y-3">
           <label className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Informações Básicas</label>
-          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do produto (Ex: Marmita de Frango)" className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-all placeholder:text-gray-600" />
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição (Ex: Arroz, feijão, frango grelhado...)" rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-all placeholder:text-gray-600 resize-none" />
+          <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome do produto" className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500" />
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Descrição" rows={2} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white outline-none focus:border-orange-500 resize-none" />
         </div>
 
-        {/* Variações / Tamanhos */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center justify-between pl-1">
             <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Tamanhos / Preços</label>
-            <button onClick={addVariant} className="text-orange-500 hover:text-orange-400 text-xs font-bold flex items-center gap-1">
-              <Plus className="w-3 h-3" /> Adicionar Tamanho
-            </button>
+            <button onClick={addVariant} className="text-orange-500 hover:text-orange-400 text-xs font-bold flex items-center gap-1"><Plus className="w-3 h-3" /> Adicionar Tamanho</button>
           </div>
-          
           {variants.length > 0 ? (
             <div className="space-y-2">
               {variants.map((variant, index) => (
-                <div key={index} className="flex gap-2 animate-in fade-in slide-in-from-top-1">
-                  <input 
-                    type="text" 
-                    value={variant.name} 
-                    onChange={(e) => updateVariant(index, 'name', e.target.value)}
-                    placeholder="Ex: P, M, G" 
-                    className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white focus:border-orange-500 outline-none"
-                  />
-                  <div className="relative w-28">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span>
-                    <input 
-                      type="text" 
-                      value={variant.price} 
-                      onChange={(e) => updateVariant(index, 'price', e.target.value)}
-                      placeholder="0,00" 
-                      className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-8 pr-3 py-2 text-sm text-white focus:border-orange-500 outline-none"
-                    />
-                  </div>
-                  <button onClick={() => removeVariant(index)} className="p-2 text-gray-600 hover:text-red-400">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <div key={index} className="flex gap-2">
+                  <input type="text" value={variant.name} onChange={(e) => updateVariant(index, 'name', e.target.value)} placeholder="Ex: P, M, G" className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-orange-500" />
+                  <div className="relative w-28"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">R$</span><input type="text" value={variant.price} onChange={(e) => updateVariant(index, 'price', e.target.value)} placeholder="0,00" className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-8 pr-3 py-2 text-sm text-white outline-none focus:border-orange-500" /></div>
+                  <button onClick={() => removeVariant(index)} className="p-2 text-gray-600 hover:text-red-400"><Trash2 className="w-4 h-4" /></button>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">R$</span>
-              <input type="text" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0,00" className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-all placeholder:text-gray-600" />
-            </div>
-          )}
-            </div>
+            <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold">R$</span><input type="text" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0,00" className="w-full bg-gray-800 border border-gray-700 rounded-xl pl-12 pr-4 py-3 text-white outline-none focus:border-orange-500" /></div>
           )}
         </div>
 
-        {/* Toggle Promoção */}
-        <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 space-y-3">
+        <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-4 space-y-3 text-left">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Tag className="w-4 h-4 text-orange-500" />
-              <span className="text-sm font-bold text-orange-400">Produto em Promoção?</span>
-            </div>
-            <button 
-              type="button"
-              onClick={() => setIsPromo(!isPromo)}
-              className={`w-12 h-6 rounded-full transition-all relative ${isPromo ? 'bg-orange-500' : 'bg-gray-700'}`}
-            >
-              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isPromo ? 'left-7' : 'left-1'}`} />
-            </button>
+            <div className="flex items-center gap-2"><Tag className="w-4 h-4 text-orange-500" /><span className="text-sm font-bold text-orange-400">Produto em Promoção?</span></div>
+            <button type="button" onClick={() => setIsPromo(!isPromo)} className={`w-12 h-6 rounded-full transition-all relative ${isPromo ? 'bg-orange-500' : 'bg-gray-700'}`}><div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${isPromo ? 'left-7' : 'left-1'}`} /></button>
           </div>
-          
           {isPromo && (
             <div className="animate-in fade-in zoom-in-95">
-              <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest block mb-2">Preço Promocional (O que o cliente paga)</label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-500 font-black">R$</span>
-                <input 
-                  type="text" 
-                  inputMode="decimal" 
-                  value={promoPrice} 
-                  onChange={(e) => setPromoPrice(e.target.value)} 
-                  placeholder="0,00" 
-                  className="w-full bg-gray-950 border border-orange-500/30 rounded-xl pl-12 pr-4 py-3 text-orange-400 font-black focus:outline-none focus:border-orange-500 transition-all placeholder:text-gray-800"
-                />
-              </div>
+              <label className="text-[10px] font-black text-orange-500 uppercase tracking-widest block mb-2">Preço Promocional</label>
+              <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-500 font-black">R$</span><input type="text" inputMode="decimal" value={promoPrice} onChange={(e) => setPromoPrice(e.target.value)} placeholder="0,00" className="w-full bg-gray-950 border border-orange-500/30 rounded-xl pl-12 pr-4 py-3 text-orange-400 font-black outline-none transition-all" /></div>
             </div>
           )}
         </div>
 
-        <button disabled={loading || !name} onClick={handleSave} className="w-full mt-4 bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 sticky bottom-0">
-          {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {loading ? 'Salvando...' : 'Salvar Produto'}
+        <button disabled={loading || !name} onClick={handleSave} className="w-full mt-4 bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-orange-500/10 flex items-center justify-center gap-2 sticky bottom-0">
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Salvar Produto'}
         </button>
       </div>
     </ModalWrapper>
   );
 }
 
-// ───────── WRAPPER MODAL ─────────
 function ModalWrapper({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void; }) {
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="bg-gray-900 border border-gray-800 rounded-3xl w-full max-w-md p-6 shadow-2xl">
+      <div className="bg-gray-900 border border-gray-800 rounded-[32px] w-full max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-lg font-black text-white">{title}</h3>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-800 rounded-full text-gray-500 hover:text-gray-300"><X className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-2 hover:bg-gray-800 rounded-full text-gray-500 hover:text-gray-300 transition-all"><X className="w-5 h-5" /></button>
         </div>
         {children}
       </div>

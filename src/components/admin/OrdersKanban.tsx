@@ -95,13 +95,13 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
       const path = `receipts/${orderId}-${Date.now()}.${ext}`;
       
       const { error: uploadError } = await supabase.storage
-        .from('images')
+        .from('menuvi-public')
         .upload(path, file);
 
       if (uploadError) throw uploadError;
 
       const { data: { publicUrl } } = supabase.storage
-        .from('images')
+        .from('menuvi-public')
         .getPublicUrl(path);
 
       const { error: updateError } = await supabase
