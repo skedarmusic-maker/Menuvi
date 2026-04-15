@@ -19,10 +19,10 @@ export default async function SuperAdminLayout({ children }: { children: React.R
   if (!superAdmin) redirect('/admin');
 
   return (
-    <div className="min-h-screen bg-gray-950 flex">
+    <div className="min-h-screen bg-gray-950 flex flex-col lg:flex-row">
       {/* Super Admin Sidebar */}
       <SubSidebarToggle />
-      <main className="flex-1 ml-64 min-h-screen bg-gray-950">
+      <main className="flex-1 lg:ml-64 min-h-screen bg-gray-950 pb-20 lg:pb-0">
         {children}
       </main>
     </div>

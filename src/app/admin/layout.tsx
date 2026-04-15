@@ -32,9 +32,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex">
+    <div className="min-h-screen bg-gray-950 flex flex-col lg:flex-row">
       <AdminSidebar restaurant={restaurant} />
-      <main className="flex-1 ml-64 min-h-screen">
+      <main className="flex-1 lg:ml-64 min-h-screen pb-20 lg:pb-0">
         {children}
       </main>
     </div>

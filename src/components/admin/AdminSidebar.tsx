@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseBrowserClient } from '@/lib/supabase-client';
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -23,6 +23,7 @@ const navItems = [
 export default function AdminSidebar({ restaurant }: { restaurant: any }) {
   const pathname = usePathname();
   const router = useRouter();
+  const supabase = createSupabaseBrowserClient();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -31,71 +32,106 @@ export default function AdminSidebar({ restaurant }: { restaurant: any }) {
   };
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-gray-900 border-r border-gray-800 flex flex-col z-40">
-      {/* Logo */}
-      <div className="px-6 py-6 border-b border-gray-800">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
-            <UtensilsCrossed className="text-white w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-white font-black text-sm leading-tight">{restaurant.name}</p>
-            <p className="text-gray-500 text-xs">Painel ADM</p>
+    <>
+      {/* SIDEBAR DESKTOP */}
+      <aside className="hidden lg:flex fixed left-0 top-0 h-full w-64 bg-gray-900 border-r border-gray-800 flex-col z-40">
+        {/* Logo */}
+        <div className="px-6 py-6 border-b border-gray-800">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/20">
+              <UtensilsCrossed className="text-white w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-white font-black text-sm leading-tight">{restaurant.name}</p>
+              <p className="text-gray-500 text-xs">Painel ADM</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Status Aberto/Fechado */}
-      <div className="px-4 py-4 border-b border-gray-800">
-        <StoreToggle restaurant={restaurant} />
-      </div>
+        {/* Status Aberto/Fechado */}
+        <div className="px-4 py-4 border-b border-gray-800">
+          <StoreToggle restaurant={restaurant} />
+        </div>
 
-      {/* Navegação */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+        {/* Navegação */}
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          {navItems.map(({ href, label, icon: Icon }) => {
+            const isActive = pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                  isActive
+                    ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
+                    : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Rodapé */}
+        <div className="px-3 py-4 border-t border-gray-800 space-y-1">
+          <a
+            href={`/${restaurant.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-all"
+          >
+            <ExternalLink className="w-5 h-5" />
+            Ver Cardápio
+          </a>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+          >
+            <LogOut className="w-5 h-5" />
+            Sair
+          </button>
+        </div>
+      </aside>
+
+      {/* MOBILE BOTTOM NAV */}
+      <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] bg-gray-900/90 backdrop-blur-xl border border-gray-800 rounded-2xl flex items-center justify-around px-2 py-3 z-50 shadow-2xl">
         {navItems.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href;
           return (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                isActive
-                  ? 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
-                  : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+              className={`flex flex-col items-center gap-1 transition-all ${
+                isActive ? 'text-orange-500' : 'text-gray-500'
               }`}
             >
-              <Icon className="w-5 h-5" />
-              {label}
+              <div className={`p-2 rounded-xl ${isActive ? 'bg-orange-500/10' : ''}`}>
+                <Icon className="w-5 h-5" />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest">{label}</span>
             </Link>
           );
         })}
-      </nav>
-
-      {/* Rodapé */}
-      <div className="px-3 py-4 border-t border-gray-800 space-y-1">
-        <a
-          href={`/${restaurant.slug}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-500 hover:text-gray-300 hover:bg-gray-800 transition-all"
-        >
-          <ExternalLink className="w-5 h-5" />
-          Ver Cardápio
-        </a>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-all"
+          className="flex flex-col items-center gap-1 text-gray-500"
         >
-          <LogOut className="w-5 h-5" />
-          Sair
+          <div className="p-2">
+            <LogOut className="w-5 h-5" />
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest">Sair</span>
         </button>
-      </div>
-    </aside>
+      </nav>
+    </>
   );
 }
 
 // Sub-componente para toggle de status da loja
 function StoreToggle({ restaurant }: { restaurant: any }) {
+  const supabase = createSupabaseBrowserClient();
+  
   const handleToggle = async () => {
     await supabase
       .from('restaurants')
