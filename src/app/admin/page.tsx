@@ -20,14 +20,21 @@ export default async function AdminDashboardPage() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const { data: orders } = await supabase
-    .from('orders')
-    .select('*, order_items(*, products(name))')
-    .eq('restaurant_id', restaurant.id)
-    .gte('created_at', today.toISOString())
-    .order('created_at', { ascending: false });
+  let allOrders: any[] = [];
+  try {
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('*, order_items(*, products(name))')
+      .eq('restaurant_id', restaurant.id)
+      .gte('created_at', today.toISOString())
+      .order('created_at', { ascending: false });
 
-  const allOrders = orders || [];
+    if (ordersError) throw ordersError;
+    allOrders = orders || [];
+  } catch (err) {
+    console.error('❌ Erro ao buscar pedidos no Admin:', err);
+    allOrders = [];
+  }
 
   // Métricas do dia
   const totalToday = allOrders.length;

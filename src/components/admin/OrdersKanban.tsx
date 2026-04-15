@@ -56,6 +56,9 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
   const [soundEnabled, setSoundEnabled] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Hydration Guard: Evita que o Realtime quebre o SSR na Hostinger
+  if (typeof window === 'undefined') return <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 animate-pulse opacity-50">Cargando painel...</div>;
+
   // Busca entregadores
   useEffect(() => {
      async function loadDrivers() {
