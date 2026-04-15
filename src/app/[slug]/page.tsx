@@ -6,73 +6,63 @@ import ProductList from "@/components/ProductList";
 
 // Função para buscar dados da loja
 async function getStoreData(slug: string) {
-  const supabase = await createSupabaseServerClient();
-  console.log('🔍 Buscando dados da loja para o slug:', slug);
+  try {
+    const supabase = await createSupabaseServerClient();
+    console.log('🔍 Buscando dados da loja para o slug:', slug);
 
-  // Busca o restaurante e suas categorias com os produtos dentro
-  const { data: restaurant, error } = await supabase
-    .from("restaurants")
-    .select(`
-      *,
-      categories (
+    // Busca o restaurante e suas categorias com os produtos dentro
+    const { data: restaurant, error } = await supabase
+      .from("restaurants")
+      .select(`
         *,
-        products (*)
-      )
-    `)
-    .eq("slug", slug)
-    .single();
+        categories (
+          *,
+          products (*)
+        )
+      `)
+      .eq("slug", slug)
+      .single();
 
-  if (error) {
-    console.error('❌ Erro Supabase ao buscar loja:', error);
-  }
+    if (error) {
+      console.error('❌ Erro Supabase ao buscar loja:', error);
+      return { name: '', categories: [], products: [], is_active: false };
+    }
 
-  const currentDay = new Date().getDay(); // 0 = Domingo, 1 = Segunda, etc.
+    if (!restaurant) return { name: '', categories: [], products: [], is_active: false };
 
-  // Achata os produtos de todas as categorias para um array único para o ProductList
-  const allProducts = restaurant?.categories?.flatMap((cat: any) =>
-    (cat.products || [])
-      .filter((p: any) => {
-        // Regra 1: Disponibilidade Manual
-        if (p.is_available === false) return false;
+    const currentDay = new Date().getDay(); // 0 = Domingo, 1 = Segunda, etc.
 
-        // Regra 2: Cardápio Semanal
-        // Se available_days for nulo ou vazio, aparece sempre
-        if (!p.available_days || p.available_days.length === 0) return true;
+    // Achata os produtos de todas as categorias para um array único para o ProductList
+    const allProducts = restaurant.categories?.flatMap((cat: any) =>
+      (cat.products || [])
+        .filter((p: any) => {
+          if (p.is_available === false) return false;
+          if (!p.available_days || p.available_days.length === 0) return true;
+          return p.available_days.includes(currentDay);
+        })
+        .map((p: any) => ({ ...p, category_id: cat.id }))
+    ) || [];
 
-        // Se houver lista de dias, verifica se o dia atual está nela
-        return p.available_days.includes(currentDay);
-      })
-      .map((p: any) => ({ ...p, category_id: cat.id }))
-  ) || [];
+    const promoProducts = allProducts.filter((p: any) => p.is_promo);
 
-  const promoProducts = allProducts.filter((p: any) => p.is_promo);
+    let finalCategories = restaurant.categories || [];
+    if (promoProducts.length > 0) {
+      const promoCategory = { id: 'promo-virtual', name: '🔥 PROMOÇÕES DO DIA', is_promo_category: true };
+      finalCategories = [promoCategory, ...finalCategories];
+      promoProducts.forEach((p: any) => {
+        allProducts.push({ ...p, category_id: 'promo-virtual', is_from_promo: true });
+      });
+    }
 
-  // Se houver promoções, injetamos uma categoria virtual no topo
-  let finalCategories = restaurant?.categories || [];
-  if (promoProducts.length > 0) {
-    const promoCategory = {
-      id: 'promo-virtual',
-      name: '🔥 PROMOÇÕES DO DIA',
-      is_promo_category: true
+    return {
+      ...restaurant,
+      categories: finalCategories,
+      products: allProducts
     };
-    finalCategories = [promoCategory, ...finalCategories];
-
-    // Marcamos os produtos da promo para a categoria virtual
-    promoProducts.forEach((p: any) => {
-      allProducts.push({ ...p, category_id: 'promo-virtual', is_from_promo: true });
-    });
+  } catch (err) {
+    console.error('🔥 Erro fatal no getStoreData:', err);
+    return { name: '', categories: [], products: [], is_active: false };
   }
-
-  if (!restaurant) {
-    console.log('⚠️ Loja não encontrada para o slug:', slug);
-    // ... mock data ...
-  }
-
-  return {
-    ...restaurant,
-    categories: finalCategories,
-    products: allProducts
-  };
 }
 
 export default async function StorePage({
