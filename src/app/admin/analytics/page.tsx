@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { 
   BarChart3, 
   TrendingUp, 
@@ -13,8 +14,10 @@ import {
   Clock
 } from 'lucide-react';
 
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ range?: string }> }) {
+  const params = await searchParams;
   const supabase = await createSupabaseServerClient();
+  const range = params.range || 'all';
   
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
@@ -27,11 +30,19 @@ export default async function AnalyticsPage() {
 
   if (!restaurant) redirect('/login');
 
-  // Buscar todos os pedidos
+  // Calcular data de corte baseada no filtro
+  let dateFilter = new Date();
+  if (range === '7days') dateFilter.setDate(dateFilter.getDate() - 7);
+  else if (range === '30days') dateFilter.setDate(dateFilter.getDate() - 30);
+  else if (range === 'today') dateFilter.setHours(0, 0, 0, 0);
+  else dateFilter = new Date(0); // All time
+
+  // Buscar pedidos com filtro de data
   const { data: allOrders = [] } = await supabase
     .from('orders')
     .select('*')
     .eq('restaurant_id', restaurant.id)
+    .gte('created_at', dateFilter.toISOString())
     .order('created_at', { ascending: false });
 
   // Métricas Consolidadas
@@ -42,8 +53,8 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-8">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      {/* Header + Filtros */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
           <h1 className="text-2xl font-black text-white flex items-center gap-2">
             <BarChart3 className="w-6 h-6 text-orange-500" />
@@ -52,9 +63,12 @@ export default async function AnalyticsPage() {
           <p className="text-gray-500 text-sm mt-1">Acompanhe o desempenho das suas vendas</p>
         </div>
         
-        <button className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl text-xs font-bold border border-gray-700 transition-all opacity-50 cursor-not-allowed">
-          <Download className="w-4 h-4" /> Exportar Relatório (Em breve)
-        </button>
+        <div className="flex bg-gray-900 border border-gray-800 p-1 rounded-2xl">
+          <FilterLink label="Hoje" value="today" active={range === 'today'} />
+          <FilterLink label="7 Dias" value="7days" active={range === '7days'} />
+          <FilterLink label="30 Dias" value="30days" active={range === '30days'} />
+          <FilterLink label="Tudo" value="all" active={range === 'all'} />
+        </div>
       </div>
 
       {/* Cards de Métricas Gerais */}
@@ -149,6 +163,21 @@ export default async function AnalyticsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function FilterLink({ label, value, active }: { label: string, value: string, active: boolean }) {
+  return (
+    <Link 
+      href={`/admin/analytics?range=${value}`}
+      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+        active 
+          ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' 
+          : 'text-gray-500 hover:text-gray-300'
+      }`}
+    >
+      {label}
+    </Link>
   );
 }
 

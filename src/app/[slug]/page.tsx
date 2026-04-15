@@ -1,11 +1,12 @@
 import Image from "next/image";
-import { supabase } from "@/lib/supabase";
+import { createSupabaseServerClient } from "@/lib/supabase-server";
 import { Clock, Search, MapPin, CreditCard, Info, User as UserIcon } from "lucide-react";
 import Link from 'next/link';
 import ProductList from "@/components/ProductList";
 
 // Função para buscar dados da loja
 async function getStoreData(slug: string) {
+  const supabase = await createSupabaseServerClient();
   console.log('🔍 Buscando dados da loja para o slug:', slug);
 
   // Busca o restaurante e suas categorias com os produtos dentro
@@ -26,12 +27,12 @@ async function getStoreData(slug: string) {
   }
 
   // Achata os produtos de todas as categorias para um array único para o ProductList
-  const allProducts = restaurant?.categories?.flatMap((cat: any) => 
+  const allProducts = restaurant?.categories?.flatMap((cat: any) =>
     (cat.products || []).map((p: any) => ({ ...p, category_id: cat.id }))
   ) || [];
 
   const promoProducts = allProducts.filter((p: any) => p.is_promo);
-  
+
   // Se houver promoções, injetamos uma categoria virtual no topo
   let finalCategories = restaurant?.categories || [];
   if (promoProducts.length > 0) {
@@ -41,7 +42,7 @@ async function getStoreData(slug: string) {
       is_promo_category: true
     };
     finalCategories = [promoCategory, ...finalCategories];
-    
+
     // Marcamos os produtos da promo para a categoria virtual
     promoProducts.forEach((p: any) => {
       allProducts.push({ ...p, category_id: 'promo-virtual', is_from_promo: true });
@@ -52,7 +53,7 @@ async function getStoreData(slug: string) {
     console.log('⚠️ Loja não encontrada para o slug:', slug);
     // ... mock data ...
   }
-  
+
   return {
     ...restaurant,
     categories: finalCategories,
@@ -67,7 +68,7 @@ export default async function StorePage({
 }) {
   const { slug } = await params;
   const store = await getStoreData(slug);
-  
+  const supabase = await createSupabaseServerClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!store.is_active) {
@@ -94,16 +95,16 @@ export default async function StorePage({
           priority
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-        
+
         {/* BOTÃO ÁREA DO CLIENTE */}
         <div className="absolute top-4 right-4 flex gap-2">
-           <Link 
-             href={user ? `/${slug}/account` : `/${slug}/login`}
-             className="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all border border-white/20 shadow-lg"
-           >
-             {user ? <UserIcon className="w-4 h-4" /> : null}
-             {user ? 'Minha Conta' : 'Entrar / Cadastrar'}
-           </Link>
+          <Link
+            href={user ? `/${slug}/account` : `/${slug}/login`}
+            className="bg-white/20 hover:bg-white/40 backdrop-blur-md text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 transition-all border border-white/20 shadow-lg"
+          >
+            {user ? <UserIcon className="w-4 h-4" /> : null}
+            {user ? 'Minha Conta' : 'Entrar / Cadastrar'}
+          </Link>
         </div>
       </div>
 
@@ -112,23 +113,23 @@ export default async function StorePage({
         <div className="flex items-end gap-4">
           <div className="w-24 h-24 rounded-2xl bg-white p-1 shadow-lg border border-gray-100 shrink-0">
             <div className="w-full h-full rounded-xl overflow-hidden relative bg-gray-100">
-               {store.logo_url ? (
-                 <Image src={store.logo_url} alt="Logo" fill className="object-cover" />
-               ) : (
-                 <div className="flex items-center justify-center w-full h-full font-bold text-gray-400 text-2xl">
-                   {store.name.charAt(0)}
-                 </div>
-               )}
+              {store.logo_url ? (
+                <Image src={store.logo_url} alt="Logo" fill className="object-cover" />
+              ) : (
+                <div className="flex items-center justify-center w-full h-full font-bold text-gray-400 text-2xl">
+                  {store.name.charAt(0)}
+                </div>
+              )}
             </div>
           </div>
           <div className="pb-2 text-white">
             <h1 className="text-2xl font-bold leading-tight shadow-black/50 drop-shadow-md">{store.name}</h1>
             <div className="flex items-center gap-2 text-sm mt-1 font-medium">
-               {store.is_open ? (
-                 <span className="flex items-center text-green-400 drop-shadow-sm"><Clock className="w-4 h-4 mr-1" /> Aberto agora</span>
-               ) : (
-                 <span className="flex items-center text-red-400 drop-shadow-sm"><Clock className="w-4 h-4 mr-1" /> Fechado</span>
-               )}
+              {store.is_open ? (
+                <span className="flex items-center text-green-400 drop-shadow-sm"><Clock className="w-4 h-4 mr-1" /> Aberto agora</span>
+              ) : (
+                <span className="flex items-center text-red-400 drop-shadow-sm"><Clock className="w-4 h-4 mr-1" /> Fechado</span>
+              )}
             </div>
           </div>
         </div>
@@ -140,9 +141,9 @@ export default async function StorePage({
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
             <Search className="text-gray-400 w-5 h-5" />
           </div>
-          <input 
-            type="text" 
-            placeholder="Buscar no cardápio..." 
+          <input
+            type="text"
+            placeholder="Buscar no cardápio..."
             className="w-full bg-gray-100 text-gray-900 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-all font-medium placeholder:font-normal border-none"
             style={{ ringColor: store.theme_color } as any}
           />
@@ -150,16 +151,16 @@ export default async function StorePage({
       </div>
 
       {/* LISTA DE PRODUTOS INTERATIVA */}
-      <ProductList 
-        store={store} 
-        products={store.products || []} 
-        categories={store.categories || []} 
+      <ProductList
+        store={store}
+        products={store.products || []}
+        categories={store.categories || []}
       />
 
       {/* RODAPÉ COM INFORMAÇÕES DA LOJA */}
       <footer className="mt-12 px-5 py-10 bg-gray-50 border-t border-gray-100">
         <div className="max-w-screen-md mx-auto space-y-8">
-          
+
           <div className="flex flex-col items-center text-center">
             <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-gray-100 mb-3">
               <Info className="w-6 h-6" style={{ color: store.theme_color }} />
