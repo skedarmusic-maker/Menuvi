@@ -95,12 +95,14 @@ function MetricCard({ icon, label, value, color, bg, isText = false }: {
   isText?: boolean;
 }) {
   return (
-    <div className={`bg-gray-900 border rounded-2xl p-4 border-gray-800`}>
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center border ${bg} ${color} mb-3`}>
+    <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-800 rounded-2xl p-4 transition-all hover:bg-gray-900">
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${bg} ${color} mb-3`}>
         {icon}
       </div>
-      <p className="text-gray-500 text-[10px] font-bold uppercase tracking-wider">{label}</p>
-      <p className={`font-black mt-1 ${color} ${isText ? 'text-base' : 'text-2xl'}`}>{value}</p>
+      <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest">{label}</p>
+      <p className={`font-black mt-0.5 ${color} ${isText ? 'text-sm lg:text-base' : 'text-xl lg:text-2xl'} truncate`}>
+        {value}
+      </p>
     </div>
   );
 }
