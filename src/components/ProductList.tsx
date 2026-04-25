@@ -182,7 +182,7 @@ export default function ProductList({ store, products, categories }: { store: an
               )}
               <div className="mt-6">
                 <label className="text-sm font-bold text-gray-900 block mb-2">Alguma observação?</label>
-                <textarea value={observations} onChange={(e) => setObservations(e.target.value)} placeholder="Ex: sem cebola, ponto da carne, etc..." className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200 transition-all h-24 resize-none" />
+                <textarea value={observations} onChange={(e) => setObservations(e.target.value)} placeholder="Ex: sem cebola, ponto da carne, etc..." className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200 transition-all h-24 resize-none" />
               </div>
               <div className="mt-8 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4 bg-gray-100 p-1 rounded-2xl">

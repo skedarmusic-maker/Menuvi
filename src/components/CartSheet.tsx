@@ -298,12 +298,12 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                 <input 
                   type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)}
                   placeholder="Seu nome completo"
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                 />
                 <input 
                   type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
                   placeholder="Seu WhatsApp (DDD)"
-                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                 />
               </div>
 
@@ -339,14 +339,14 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                         <input 
                           type="text" value={address.street} onChange={(e) => setAddress({...address, street: e.target.value})}
                           placeholder="Rua / Avenida"
-                          className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                          className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                         />
                       </div>
                       <div className="col-span-1">
                         <input 
                           type="text" value={address.number} onChange={(e) => setAddress({...address, number: e.target.value})}
                           placeholder="Nº"
-                          className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                          className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                         />
                       </div>
                     </div>
@@ -354,20 +354,20 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                       <input 
                         type="text" value={address.neighborhood} onChange={(e) => setAddress({...address, neighborhood: e.target.value})}
                         placeholder="Bairro"
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                       />
                       <input 
                         type="text" value={address.cep} 
                         onChange={(e) => setAddress({...address, cep: e.target.value})}
                         onBlur={handleCepBlur}
                         placeholder="CEP"
-                        className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                       />
                     </div>
                     <input 
                       type="text" value={address.complement} onChange={(e) => setAddress({...address, complement: e.target.value})}
                       placeholder="Complemento (Apto, Bloco, Casa...)"
-                      className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-gray-200"
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                     />
                     
                     {savedProfile?.address_street && (
