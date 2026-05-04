@@ -40,16 +40,18 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   else dateFilter = new Date(0); // All time
 
   // Buscar pedidos com filtro de data
-  const { data: allOrders = [] } = await supabase
+  const { data: allOrders } = await supabase
     .from('orders')
     .select('*')
     .eq('restaurant_id', restaurant.id)
     .gte('created_at', dateFilter.toISOString())
     .order('created_at', { ascending: false });
 
+  const safeOrders = allOrders ?? [];
+
   // Métricas Consolidadas
-  const finishedOrders = allOrders?.filter(o => o.status === 'finished') || [];
-  const canceledOrders = allOrders?.filter(o => o.status === 'canceled') || [];
+  const finishedOrders = safeOrders.filter(o => o.status === 'finished');
+  const canceledOrders = safeOrders.filter(o => o.status === 'canceled');
   const totalRevenue = finishedOrders.reduce((acc, o) => acc + (o.total_amount || 0), 0);
   const averageTicket = finishedOrders.length > 0 ? totalRevenue / finishedOrders.length : 0;
 
@@ -57,7 +59,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
   const hourlyMap = new Array(24).fill(0);
   const weeklyMap = new Array(7).fill(0); // 0=Dom, 1=Seg...
   
-  allOrders.forEach(order => {
+  safeOrders.forEach(order => {
     const date = new Date(order.created_at);
     hourlyMap[date.getHours()]++;
     weeklyMap[date.getDay()]++;
@@ -119,7 +121,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
         />
         <StatCard 
           label="Taxa de Cancelamento" 
-          value={`${allOrders.length > 0 ? ((canceledOrders.length / allOrders.length) * 100).toFixed(1) : 0}%`}
+          value={`${safeOrders.length > 0 ? ((canceledOrders.length / safeOrders.length) * 100).toFixed(1) : 0}%`}
           icon={<XCircle className="w-5 h-5" />}
           color="text-red-400"
           bg="bg-red-500/10"
@@ -155,14 +157,14 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-800/50">
-              {allOrders.length === 0 ? (
+              {safeOrders.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-6 py-12 text-center text-gray-600 italic">
                     Nenhum pedido registrado no histórico.
                   </td>
                 </tr>
               ) : (
-                allOrders.map((order) => (
+                safeOrders.map((order) => (
                   <tr key={order.id} className="hover:bg-gray-800/30 transition-colors">
                     <td className="px-6 py-4">
                       <p className="text-white font-mono text-[11px]">#{order.id.slice(0, 8).toUpperCase()}</p>

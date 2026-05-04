@@ -35,19 +35,20 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
   const [userId, setUserId] = useState<string | null>(null);
   const [savedProfile, setSavedProfile] = useState<any>(null);
   const [useSavedAddress, setUseSavedAddress] = useState(false);
+  const [pixData, setPixData] = useState<{ qrCode: string; pixCode: string; paymentId: string } | null>(null);
 
   useEffect(() => {
     async function checkUser() {
       if (!isOpen) return; // Só busca quando a sacola abre
-      
+
       console.log('🔍 CartSheet aberta, verificando autenticação...');
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (user) {
         console.log('✅ Usuário identificado:', user.id);
         setUserId(user.id);
         const { data: profile, error: profileError } = await supabase.from('customer_profiles').select('*').eq('id', user.id).single();
-        
+
         if (profileError) {
           console.error('❌ Erro ao buscar perfil:', profileError);
         }
@@ -55,7 +56,7 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
         if (profile) {
           console.log('📋 Perfil encontrado:', profile);
           setSavedProfile(profile);
-          
+
           // Só ativa o "Endereço Salvo" se houver uma rua cadastrada
           if (profile.address_street) {
             setUseSavedAddress(true);
@@ -71,9 +72,9 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
 
             // Auto-calcula frete para o endereço salvo
             if (profile.cep && store.has_distance_delivery) {
-               console.log('🚚 Calculando frete automático para CEP:', profile.cep);
-               const distance = await calculateDeliveryDistance(profile.cep);
-               if (distance !== null) setDeliveryFee(getDeliveryFee(distance));
+              console.log('🚚 Calculando frete automático para CEP:', profile.cep);
+              const distance = await calculateDeliveryDistance(profile.cep);
+              if (distance !== null) setDeliveryFee(getDeliveryFee(distance));
             }
           }
         }
@@ -121,7 +122,7 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
     try {
       // 1. Validar IDs
       const isRestaurantUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(store.id);
-      
+
       console.log('🏁 Iniciando pedido:', {
         restaurantId: store.id,
         isUUID: isRestaurantUUID
@@ -148,10 +149,10 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
       // 2. Salvar itens do pedido
       const itemsToInsert = cart.map(item => {
         const rawId = item.id.includes('-') ? item.id.split('-')[0] : item.id;
-        
+
         // Verifica se é um UUID válido (formato: 8-4-4-4-12 caracteres)
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
-        
+
         console.log('📦 Processando item:', {
           originalId: item.id,
           cleanedId: rawId,
@@ -172,26 +173,51 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
 
       // 3. Gerar Mensagem WhatsApp formatada
       const formattedTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPriceWithDelivery);
-      
+
+      // --- LOGICA DE PIX COM ASAAS ---
+      if (paymentMethod === 'pix') {
+        const response = await fetch('/api/checkout/asaas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: order.id,
+            restaurantId: store.id,
+            customerName,
+            customerPhone,
+            totalAmount: totalPriceWithDelivery,
+          }),
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'Erro ao gerar Pix');
+        }
+
+        const data = await response.json();
+        setPixData(data);
+        setLoading(false);
+        return; // Para aqui para mostrar o QR Code
+      }
+
       const message = encodeURIComponent(
         `🔥 *NOVO PEDIDO NO MENUVI* 🔥\n` +
         `---------------------------------------\n` +
         `🆔 *Pedido:* #${order.id.slice(0, 4).toUpperCase()}\n\n` +
-        
+
         `👤 *DADOS DO CLIENTE*\n` +
         `*Nome:* ${customerName}\n` +
         `📞 *WhatsApp:* ${customerPhone}\n\n` +
-        
+
         `📍 *ENDEREÇO DE ENTREGA*\n` +
         `*Rua:* ${address.street}, ${address.number}\n` +
         `*Bairro:* ${address.neighborhood}\n` +
         `${address.complement ? `*Compl.:* ${address.complement}\n` : ''}` +
         `${address.cep ? `*CEP:* ${address.cep}\n` : ''}` +
         `🛵 *Frete:* ${deliveryFee === 0 ? 'Grátis' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(deliveryFee || 0)}\n\n` +
-        
+
         `🛒 *ITENS DO PEDIDO*\n` +
         `---------------------------------------\n` +
-        cart.map(item => 
+        cart.map(item =>
           `✅ *${item.quantity}x ${item.name}*\n` +
           `   ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price * item.quantity)}` +
           `${item.observations ? `\n   📝 _Obs: ${item.observations}_` : ''}`
@@ -225,16 +251,16 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
   return (
     <div className="fixed inset-0 z-[110] flex items-center justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
       <div className="bg-white h-full w-full max-w-md flex flex-col shadow-2xl animate-in slide-in-from-right duration-500">
-        
+
         {/* HEADER DA SACOLA */}
         <div className="px-6 py-6 border-b flex items-center justify-between bg-white sticky top-0 z-10">
           <div className="flex items-center gap-3">
-             <button onClick={onClose} className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors">
-               <X className="w-6 h-6 text-gray-900" />
-             </button>
-             <h2 className="text-xl font-black text-gray-900 tracking-tight">
-               {step === 'items' ? 'Minha Sacola' : 'Finalizar Pedido'}
-             </h2>
+            <button onClick={onClose} className="p-2 -ml-2 hover:bg-gray-100 rounded-full transition-colors">
+              <X className="w-6 h-6 text-gray-900" />
+            </button>
+            <h2 className="text-xl font-black text-gray-900 tracking-tight">
+              {step === 'items' ? 'Minha Sacola' : 'Finalizar Pedido'}
+            </h2>
           </div>
           {step === 'items' && cart.length > 0 && (
             <button onClick={() => setStep('checkout')} className="text-sm font-bold" style={{ color: store.theme_color }}>
@@ -263,27 +289,27 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between items-start">
-                         <h4 className="font-bold text-gray-900 leading-tight pr-2">{item.name}</h4>
-                         <div className="flex items-center gap-2 shrink-0">
-                            <button onClick={() => onEditItem?.(item)} className="p-1 text-gray-400 hover:text-orange-500 transition-colors">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => removeFromCart(item.id)} className="text-gray-400 hover:text-red-500">
-                              <X className="w-4 h-4" />
-                            </button>
-                         </div>
+                        <h4 className="font-bold text-gray-900 leading-tight pr-2">{item.name}</h4>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button onClick={() => onEditItem?.(item)} className="p-1 text-gray-400 hover:text-orange-500 transition-colors">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button onClick={() => removeFromCart(item.id)} className="text-gray-400 hover:text-red-500">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                       <p className="text-xs text-gray-500 mt-0.5 line-clamp-1 italic">{item.observations}</p>
-                      
+
                       <div className="flex items-center justify-between mt-3">
-                         <div className="flex items-center gap-3 bg-gray-100 rounded-lg p-1">
-                           <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-sm font-bold text-gray-900 border border-gray-100">-</button>
-                           <span className="text-sm font-black w-4 text-center text-gray-900">{item.quantity}</span>
-                           <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-sm font-bold text-gray-900 border border-gray-100">+</button>
-                         </div>
-                         <span className="font-bold text-gray-900">
-                           {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price * item.quantity)}
-                         </span>
+                        <div className="flex items-center gap-3 bg-gray-100 rounded-lg p-1">
+                          <button onClick={() => updateQuantity(item.id, item.quantity - 1)} className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-sm font-bold text-gray-900 border border-gray-100">-</button>
+                          <span className="text-sm font-black w-4 text-center text-gray-900">{item.quantity}</span>
+                          <button onClick={() => updateQuantity(item.id, item.quantity + 1)} className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm text-sm font-bold text-gray-900 border border-gray-100">+</button>
+                        </div>
+                        <span className="font-bold text-gray-900">
+                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price * item.quantity)}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -295,12 +321,12 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
             <div className="space-y-6">
               <div className="space-y-4">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2"><User className="w-4 h-4" /> Seus Dados</h3>
-                <input 
+                <input
                   type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)}
                   placeholder="Seu nome completo"
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                 />
-                <input 
+                <input
                   type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
                   placeholder="Seu WhatsApp (DDD)"
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
@@ -309,7 +335,7 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
 
               <div className="space-y-4">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2"><MapPin className="w-4 h-4" /> Endereço de Entrega</h3>
-                
+
                 {useSavedAddress && savedProfile?.address_street ? (
                   /* CARD DE ENDEREÇO SALVO */
                   <div className="bg-white border-2 border-orange-500/20 p-5 rounded-3xl space-y-3 shadow-sm relative overflow-hidden">
@@ -319,8 +345,8 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                       <p className="text-gray-500 text-xs">{savedProfile.neighborhood} - {savedProfile.cep}</p>
                       {savedProfile.complement && <p className="text-gray-400 text-[10px] italic">Ref: {savedProfile.complement}</p>}
                     </div>
-                    
-                    <button 
+
+                    <button
                       onClick={() => {
                         setUseSavedAddress(false);
                         setAddress({ street: '', number: '', neighborhood: '', cep: '', complement: '' });
@@ -336,42 +362,42 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                   <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                     <div className="grid grid-cols-4 gap-3">
                       <div className="col-span-3">
-                        <input 
-                          type="text" value={address.street} onChange={(e) => setAddress({...address, street: e.target.value})}
+                        <input
+                          type="text" value={address.street} onChange={(e) => setAddress({ ...address, street: e.target.value })}
                           placeholder="Rua / Avenida"
                           className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                         />
                       </div>
                       <div className="col-span-1">
-                        <input 
-                          type="text" value={address.number} onChange={(e) => setAddress({...address, number: e.target.value})}
+                        <input
+                          type="text" value={address.number} onChange={(e) => setAddress({ ...address, number: e.target.value })}
                           placeholder="Nº"
                           className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                         />
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
-                      <input 
-                        type="text" value={address.neighborhood} onChange={(e) => setAddress({...address, neighborhood: e.target.value})}
+                      <input
+                        type="text" value={address.neighborhood} onChange={(e) => setAddress({ ...address, neighborhood: e.target.value })}
                         placeholder="Bairro"
                         className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                       />
-                      <input 
-                        type="text" value={address.cep} 
-                        onChange={(e) => setAddress({...address, cep: e.target.value})}
+                      <input
+                        type="text" value={address.cep}
+                        onChange={(e) => setAddress({ ...address, cep: e.target.value })}
                         onBlur={handleCepBlur}
                         placeholder="CEP"
                         className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                       />
                     </div>
-                    <input 
-                      type="text" value={address.complement} onChange={(e) => setAddress({...address, complement: e.target.value})}
+                    <input
+                      type="text" value={address.complement} onChange={(e) => setAddress({ ...address, complement: e.target.value })}
                       placeholder="Complemento (Apto, Bloco, Casa...)"
                       className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                     />
-                    
+
                     {savedProfile?.address_street && (
-                      <button 
+                      <button
                         onClick={() => {
                           setUseSavedAddress(true);
                           setAddress({
@@ -385,7 +411,7 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                         }}
                         className="text-xs font-black text-gray-400 uppercase tracking-widest flex items-center gap-1"
                       >
-                         <RotateCcw className="w-3 h-3" /> Voltar para endereço salvo
+                        <RotateCcw className="w-3 h-3" /> Voltar para endereço salvo
                       </button>
                     )}
                   </div>
@@ -405,14 +431,14 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
               <div className="space-y-4 pb-8">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2"><CreditCard className="w-4 h-4" /> Forma de Pagamento</h3>
                 <div className="grid grid-cols-2 gap-3">
-                  <button 
+                  <button
                     onClick={() => setPaymentMethod('pix')}
                     className={`p-4 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${paymentMethod === 'pix' ? 'border-gray-950 bg-gray-100' : 'border-gray-100 opacity-40'}`}
                   >
                     <div className="w-8 h-8 flex items-center justify-center font-black text-gray-900">PIX</div>
                     <span className="text-sm font-black text-gray-900">Pix na hora</span>
                   </button>
-                  <button 
+                  <button
                     onClick={() => setPaymentMethod('dinheiro')}
                     className={`p-4 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${paymentMethod === 'dinheiro' ? 'border-gray-950 bg-gray-100' : 'border-gray-100 opacity-40'}`}
                   >
@@ -420,6 +446,57 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                     <span className="text-sm font-black text-gray-900">Dinheiro</span>
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* OVERLAY DE PIX QR CODE */}
+          {pixData && (
+            <div className="absolute inset-0 z-50 bg-white flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in duration-300">
+              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-6">
+                <CreditCard className="w-8 h-8 text-blue-600" />
+              </div>
+              <h3 className="text-xl font-black text-gray-900 mb-2">Seu Pix foi gerado!</h3>
+              <p className="text-gray-500 text-sm mb-8">Escaneie o QR Code abaixo ou copie o código para pagar.</p>
+
+              <div className="bg-white border-2 border-gray-100 p-4 rounded-3xl mb-8 shadow-sm">
+                <img src={`data:image/png;base64,${pixData.qrCode}`} alt="QR Code Pix" className="w-48 h-48 mx-auto" />
+              </div>
+
+              <div className="w-full space-y-4">
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(pixData.pixCode);
+                    alert('Código Copiado!');
+                  }}
+                  className="w-full bg-gray-100 text-gray-900 font-bold py-4 rounded-2xl flex items-center justify-center gap-2"
+                >
+                  Copiar Código Pix
+                </button>
+                
+                <button
+                  onClick={() => {
+                    // Após pagar (ou para avisar), envia o WhatsApp
+                    const formattedTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPriceWithDelivery);
+                    const message = encodeURIComponent(
+                      `🔥 *PEDIDO COM PIX PAGO* 🔥\n` +
+                      `🆔 *Pedido:* #${pixData.paymentId.slice(-4).toUpperCase()}\n\n` +
+                      `👤 *Cliente:* ${customerName}\n` +
+                      `💰 *Valor:* ${formattedTotal}\n` +
+                      `✅ _Pagamento gerado via Pix automático_`
+                    );
+                    window.location.href = `https://wa.me/${store.whatsapp_number}?text=${message}`;
+                    clearCart();
+                    onClose();
+                  }}
+                  className="w-full bg-green-500 text-white font-bold py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2"
+                >
+                  Já paguei! Avisar no WhatsApp
+                </button>
+
+                <button onClick={() => setPixData(null)} className="text-gray-400 text-xs font-bold uppercase tracking-widest pt-4">
+                  Voltar e alterar pagamento
+                </button>
               </div>
             </div>
           )}
@@ -433,7 +510,7 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
               <h3 className="font-bold text-gray-900">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPriceWithDelivery)}</h3>
             </div>
             {step === 'items' ? (
-              <button 
+              <button
                 onClick={() => setStep('checkout')}
                 className="w-full text-white font-bold py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.98]"
                 style={{ backgroundColor: store.theme_color }}
@@ -441,7 +518,7 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                 Continuar para entrega <ChevronRight className="w-5 h-5" />
               </button>
             ) : (
-              <button 
+              <button
                 disabled={loading}
                 onClick={handleCheckout}
                 className="w-full text-white font-bold py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-[0.98] disabled:opacity-50"

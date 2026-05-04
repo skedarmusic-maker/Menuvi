@@ -349,42 +349,64 @@ function OrderCard({ order, isExpanded, onToggle, onTogglePix, onAdvance, onCanc
   return (
     <div className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-gray-700 transition-all">
       {/* Header do Card */}
-      <button onClick={onToggle} className="w-full p-4 text-left">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-gray-500 text-xs font-mono">#{order.id.slice(0, 6)}</span>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${config.bg} ${config.color}`}>
-                {order.payment_method.toUpperCase()}
-              </span>
-              {order.payment_method === 'pix' && (
-                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${order.pix_confirmed ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400 animate-pulse'}`}>
-                  {order.pix_confirmed ? 'PIX RECEBIDO' : 'AGUARDANDO PIX'}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-               <p className="text-white font-bold text-sm truncate">{order.customer_name}</p>
-               <button 
-                 onClick={(e) => { e.stopPropagation(); handlePrint(); }}
-                 className="p-1 px-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-400 hover:text-white transition-all flex items-center gap-1"
-               >
-                 <Printer className="w-3 h-3" />
-                 <span className="text-[10px] font-bold">IMPRIMIR</span>
-               </button>
-            </div>
-            <p className="text-orange-400 font-black mt-1">
-              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total_amount)}
-            </p>
-          </div>
-          <div id={`print-ticket-${order.id}`} className="hidden"></div>
+      <div className="w-full p-4 text-left">
+
+        {/* Linha 1: ID + Tempo + Chevron */}
+        <div
+          className="flex items-center justify-between mb-2 cursor-pointer"
+          onClick={onToggle}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === 'Enter' && onToggle()}
+        >
+          <span className="text-gray-500 text-xs font-mono">#{order.id.slice(0, 6)}</span>
           <div className="flex items-center gap-1 text-gray-600 shrink-0">
-            <Clock className="w-3.5 h-3.5" />
+            <Clock className="w-3 h-3" />
             <span className="text-xs">{timeAgo}</span>
-            <ChevronDown className={`w-4 h-4 ml-1 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-4 h-4 ml-0.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
           </div>
         </div>
-      </button>
+
+        {/* Linha 2: Badges de pagamento */}
+        <div className="flex items-center gap-1.5 flex-wrap mb-3">
+          <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${config.bg} ${config.color}`}>
+            {order.payment_method.toUpperCase()}
+          </span>
+          {order.payment_method === 'pix' && (
+            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${
+              order.pix_confirmed
+                ? 'bg-green-500/15 border-green-500/30 text-green-400'
+                : 'bg-amber-500/15 border-amber-500/30 text-amber-400 animate-pulse'
+            }`}>
+              {order.pix_confirmed ? '\u2713 PIX RECEBIDO' : '\u23f3 AGUARDANDO PIX'}
+            </span>
+          )}
+        </div>
+
+        {/* Linha 3: Nome + Imprimir + Valor */}
+        <div
+          className="cursor-pointer"
+          onClick={onToggle}
+          role="button"
+          tabIndex={-1}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-white font-bold text-sm truncate flex-1">{order.customer_name}</p>
+            <button
+              onClick={(e) => { e.stopPropagation(); handlePrint(); }}
+              className="shrink-0 p-1 px-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-500 hover:text-white transition-all flex items-center gap-1"
+            >
+              <Printer className="w-3 h-3" />
+              <span className="text-[9px] font-bold tracking-wide">IMPRIMIR</span>
+            </button>
+          </div>
+          <p className="text-orange-400 font-black text-base mt-1">
+            {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(order.total_amount)}
+          </p>
+        </div>
+
+        <div id={`print-ticket-${order.id}`} className="hidden"></div>
+      </div>
 
       {/* Conteúdo expandido */}
       {isExpanded && (

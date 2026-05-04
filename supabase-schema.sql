@@ -9,6 +9,9 @@ create table public.restaurants (
     banner_url text,
     theme_color text default '#FF4500',
     is_open boolean default true,
+    payment_gateway_provider text default 'asaas', -- 'asaas', 'mercadopago' ou null
+    gateway_wallet_id text, -- ID da carteira do restaurante no gateway (para o split)
+    split_fee_percent numeric(5,2) default 1.00, -- 1.00 = 1%
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -42,7 +45,11 @@ create table public.orders (
     customer_phone text not null,
     customer_address text not null,
     total_amount numeric(10,2) not null,
-    payment_method text not null, -- 'pix' ou 'dinheiro'
+    payment_method text not null, -- 'pix', 'dinheiro', 'cartao_entrega'
+    payment_status text default 'pending', -- 'pending', 'paid', 'failed'
+    gateway_payment_id text, -- ID da cobrança gerada no Asaas/MercadoPago
+    payment_qr_code text, -- Imagem Base64 ou URL do QR Code
+    payment_qr_code_text text, -- Código Copia e Cola do PIX
     status text default 'new', -- 'new', 'accepted', 'preparing', 'delivering', 'finished', 'canceled'
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
