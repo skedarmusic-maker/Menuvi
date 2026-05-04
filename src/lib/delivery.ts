@@ -1,8 +1,8 @@
-export async function calculateDeliveryDistance(customerCep: string, storeCep: string = "09942120") {
+export async function calculateDeliveryDistance(customerCep: string, storeCep: string) {
   const cleanCustomerCep = customerCep.replace(/\D/g, '');
-  const cleanStoreCep = storeCep.replace(/\D/g, '');
+  const cleanStoreCep = storeCep?.replace(/\D/g, '');
 
-  if (cleanCustomerCep.length !== 8) return null;
+  if (!cleanCustomerCep || cleanCustomerCep.length !== 8 || !cleanStoreCep) return null;
 
   try {
     const response = await fetch("https://gateway.apibrasil.io/api/v2/cep/distancia/calcular", {
@@ -33,10 +33,21 @@ export async function calculateDeliveryDistance(customerCep: string, storeCep: s
   }
 }
 
-export function getDeliveryFee(distanceKm: number): number {
-  if (distanceKm <= 2.0) return 0;
-  if (distanceKm <= 3.0) return 3.0;
-  if (distanceKm <= 5.0) return 5.0;
-  if (distanceKm <= 7.0) return 7.0;
-  return 10.0; // Padrão acima de 7km
+export interface DeliveryRule {
+  min: number;
+  max: number;
+  fee: number;
+}
+
+export function getDeliveryFee(distanceKm: number, rules: DeliveryRule[]): number {
+  if (!rules || !Array.isArray(rules)) return 0;
+
+  // Encontra a regra que se encaixa na distância
+  const rule = rules.find(r => distanceKm >= r.min && distanceKm <= r.max);
+
+  if (rule) return rule.fee;
+
+  // Se estiver fora de todas as faixas, retorna a taxa da maior faixa cadastrada ou um valor padrão
+  const maxRange = [...rules].sort((a, b) => b.max - a.max)[0];
+  return maxRange ? maxRange.fee : 0;
 }

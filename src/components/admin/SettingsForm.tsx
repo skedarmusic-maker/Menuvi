@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { createSupabaseBrowserClient } from '@/lib/supabase-client';
-import { Save, Loader2, Store, Phone, Palette, Globe, Image as ImageIcon, Camera, Trash2, MapPin, Clock, CreditCard } from 'lucide-react';
+import { Save, Loader2, Store, Phone, Palette, Globe, Image as ImageIcon, Camera, Trash2, MapPin, Clock, CreditCard, Truck, Plus, Info } from 'lucide-react';
+import { DeliveryRule } from '@/lib/delivery';
 
 const THEME_COLORS = [
   { label: 'Vermelho', value: '#ef4444' },
@@ -29,6 +30,14 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
   const [address, setAddress] = useState(restaurant.address || '');
   const [openingHours, setOpeningHours] = useState(restaurant.opening_hours || '');
   const [paymentMethods, setPaymentMethods] = useState(restaurant.payment_methods || '');
+  const [cep, setCep] = useState(restaurant.cep || '');
+  const [hasDistanceDelivery, setHasDistanceDelivery] = useState(restaurant.has_distance_delivery || false);
+  const [deliveryRules, setDeliveryRules] = useState<DeliveryRule[]>(
+    restaurant.delivery_rules || [
+      { min: 0, max: 2, fee: 0 },
+      { min: 2, max: 5, fee: 7 }
+    ]
+  );
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -79,6 +88,9 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
         address,
         opening_hours: openingHours,
         payment_methods: paymentMethods,
+        cep,
+        has_distance_delivery: hasDistanceDelivery,
+        delivery_rules: deliveryRules,
       })
       .eq('id', restaurant.id);
 
@@ -233,6 +245,116 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
           placeholder="Ex: Cartões, Pix e Dinheiro"
           className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all"
         />
+      </div>
+
+      {/* Configurações de Frete */}
+      <div className="pt-6 border-t border-gray-800 space-y-6">
+        <div className="flex items-center justify-between">
+          <label className="text-gray-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+            <Truck className="w-4 h-4" /> Entrega e Frete por Distância
+          </label>
+          <button
+            type="button"
+            onClick={() => setHasDistanceDelivery(!hasDistanceDelivery)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+              hasDistanceDelivery ? 'bg-green-500' : 'bg-gray-700'
+            }`}
+          >
+            <span
+              className={`${
+                hasDistanceDelivery ? 'translate-x-6' : 'translate-x-1'
+              } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
+            />
+          </button>
+        </div>
+
+        {hasDistanceDelivery && (
+          <div className="space-y-6 animate-in slide-in-from-top-2 duration-300">
+            {/* CEP da Loja */}
+            <div>
+              <label className="text-gray-500 text-[10px] font-black uppercase mb-2 block">Seu CEP de Origem</label>
+              <input
+                type="text"
+                value={cep}
+                onChange={(e) => setCep(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                placeholder="00000-000"
+                className="w-full max-w-[200px] bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-all"
+              />
+              <p className="text-[10px] text-gray-600 mt-2 flex items-center gap-1">
+                <Info className="w-3 h-3" /> Usado para calcular a distância até o cliente via API Brasil.
+              </p>
+            </div>
+
+            {/* Tabela de Preços */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <label className="text-gray-500 text-[10px] font-black uppercase">Tabela de Preços por KM</label>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryRules([...deliveryRules, { min: 0, max: 0, fee: 0 }])}
+                  className="text-orange-500 hover:text-orange-400 text-[10px] font-black flex items-center gap-1 uppercase"
+                >
+                  <Plus className="w-3 h-3" /> Adicionar Faixa
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {deliveryRules.map((rule, index) => (
+                  <div key={index} className="flex items-center gap-3 bg-gray-800/50 p-3 rounded-2xl border border-gray-700/50">
+                    <div className="flex-1 grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <span className="text-[9px] text-gray-600 uppercase font-black">De (KM)</span>
+                        <input
+                          type="number" step="0.1"
+                          value={rule.min}
+                          onChange={(e) => {
+                            const newRules = [...deliveryRules];
+                            newRules[index].min = parseFloat(e.target.value) || 0;
+                            setDeliveryRules(newRules);
+                          }}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-orange-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[9px] text-gray-600 uppercase font-black">Até (KM)</span>
+                        <input
+                          type="number" step="0.1"
+                          value={rule.max}
+                          onChange={(e) => {
+                            const newRules = [...deliveryRules];
+                            newRules[index].max = parseFloat(e.target.value) || 0;
+                            setDeliveryRules(newRules);
+                          }}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-orange-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[9px] text-gray-600 uppercase font-black">Valor (R$)</span>
+                        <input
+                          type="number" step="0.01"
+                          value={rule.fee}
+                          onChange={(e) => {
+                            const newRules = [...deliveryRules];
+                            newRules[index].fee = parseFloat(e.target.value) || 0;
+                            setDeliveryRules(newRules);
+                          }}
+                          className="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-orange-500 text-orange-400 font-bold"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryRules(deliveryRules.filter((_, i) => i !== index))}
+                      className="p-2 text-gray-600 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Cor do Tema */}

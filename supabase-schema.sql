@@ -132,7 +132,14 @@ insert into public.super_admins (email) values ('focus.earts@gmail.com');
 alter table public.restaurants 
 add column if not exists plan_status text default 'trial',
 add column if not exists expires_at timestamp with time zone default (now() + interval '7 days'),
-add column if not exists is_active boolean default true;
+add column if not exists is_active boolean default true,
+add column if not exists cep text,
+add column if not exists has_distance_delivery boolean default false,
+add column if not exists delivery_rules jsonb default '[
+  {"min": 0, "max": 2, "fee": 0},
+  {"min": 2, "max": 5, "fee": 7},
+  {"min": 5, "max": 10, "fee": 12}
+]'::jsonb;
 
 -- Adiciona politica para permitir Super Admins ler tudo
 create policy "SuperAdmin can manage all restaurants" on public.restaurants

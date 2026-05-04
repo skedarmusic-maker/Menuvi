@@ -1,7 +1,9 @@
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY;
 const ASAAS_API_URL = process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3';
 
-export async function createAsaasCustomer(name: string, phone: string) {
+export async function createAsaasCustomer(name: string, phone: string, cpfCnpj: string) {
+  console.log('🔑 [Asaas Debug] Usando Key:', ASAAS_API_KEY ? ASAAS_API_KEY.substring(0, 15) + '...' : 'UNDEFINED');
+
   const response = await fetch(`${ASAAS_API_URL}/customers`, {
     method: 'POST',
     headers: {
@@ -11,6 +13,7 @@ export async function createAsaasCustomer(name: string, phone: string) {
     body: JSON.stringify({
       name,
       mobilePhone: phone,
+      cpfCnpj,
     }),
   });
 

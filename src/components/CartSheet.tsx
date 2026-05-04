@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCart } from '@/context/CartContext';
-import { X, Trash2, MapPin, Phone, User, CreditCard, ChevronRight, Pencil, RotateCcw } from 'lucide-react';
+import { X, Trash2, MapPin, Phone, User, CreditCard, ChevronRight, Pencil, RotateCcw, CheckCircle } from 'lucide-react';
 import { calculateDeliveryDistance, getDeliveryFee } from '@/lib/delivery';
 import { createSupabaseBrowserClient } from '@/lib/supabase-client';
+import Link from 'next/link';
 
 interface CartSheetProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
   // Form states
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [customerCpf, setCustomerCpf] = useState('');
   const [address, setAddress] = useState({
     street: '',
     number: '',
@@ -36,6 +38,8 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
   const [savedProfile, setSavedProfile] = useState<any>(null);
   const [useSavedAddress, setUseSavedAddress] = useState(false);
   const [pixData, setPixData] = useState<{ qrCode: string; pixCode: string; paymentId: string } | null>(null);
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     async function checkUser() {
@@ -73,8 +77,8 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
             // Auto-calcula frete para o endereço salvo
             if (profile.cep && store.has_distance_delivery) {
               console.log('🚚 Calculando frete automático para CEP:', profile.cep);
-              const distance = await calculateDeliveryDistance(profile.cep);
-              if (distance !== null) setDeliveryFee(getDeliveryFee(distance));
+              const distance = await calculateDeliveryDistance(profile.cep, store.cep);
+              if (distance !== null) setDeliveryFee(getDeliveryFee(distance, store.delivery_rules));
             }
           }
         }
@@ -94,9 +98,9 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
     if (address.cep.replace(/\D/g, '').length === 8) {
       setCalculatingFee(true);
       try {
-        const distance = await calculateDeliveryDistance(address.cep);
+        const distance = await calculateDeliveryDistance(address.cep, store.cep);
         if (distance !== null) {
-          const fee = getDeliveryFee(distance);
+          const fee = getDeliveryFee(distance, store.delivery_rules);
           setDeliveryFee(fee);
         }
       } catch (error) {
@@ -110,8 +114,8 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
   if (!isOpen) return null;
 
   const handleCheckout = async () => {
-    if (!customerName || !customerPhone || !address.street || !address.number || !address.neighborhood) {
-      alert('Por favor, preencha nome, telefone e o endereço completo (Rua, Número e Bairro).');
+    if (!customerName || !customerPhone || !customerCpf || !address.street || !address.number || !address.neighborhood) {
+      alert('Por favor, preencha nome, telefone, CPF e o endereço completo.');
       return;
     }
 
@@ -145,6 +149,7 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
         .single();
 
       if (orderError) throw orderError;
+      setCreatedOrderId(order.id);
 
       // 2. Salvar itens do pedido
       const itemsToInsert = cart.map(item => {
@@ -184,6 +189,7 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
             restaurantId: store.id,
             customerName,
             customerPhone,
+            customerCpf,
             totalAmount: totalPriceWithDelivery,
           }),
         });
@@ -225,15 +231,26 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
         `\n\n---------------------------------------\n` +
         `💰 *VALOR TOTAL:* ${formattedTotal}\n` +
         `💳 *FORMA DE PAGAMENTO:* ${paymentMethod.toUpperCase()}\n` +
+        `---------------------------------------\n` +
+        `📍 *ACOMPANHAR STATUS:* ${window.location.origin}/order-status/${order.id}\n` +
         `---------------------------------------\n\n` +
         `_Enviado via Menuvi SaaS_ 🚀`
       );
 
       const whatsappUrl = `https://wa.me/${store.whatsapp_number}?text=${message}`;
 
-      // 4. Limpar e Redirecionar
+      // 4. Sucesso!
+      setOrderSuccess(true);
       clearCart();
-      window.location.href = whatsappUrl;
+
+      // Se for dinheiro, prepara o link do WhatsApp
+      const finalWhatsappUrl = `https://wa.me/${store.whatsapp_number}?text=${message}`;
+
+      if (paymentMethod === 'dinheiro') {
+        setTimeout(() => {
+          window.location.href = finalWhatsappUrl;
+        }, 3000); // Redireciona após 3 segundos
+      }
 
     } catch (error: any) {
       console.error('Erro detalhado ao processar pedido:', error);
@@ -328,7 +345,12 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                 />
                 <input
                   type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
-                  placeholder="Seu WhatsApp (DDD)"
+                  placeholder="Seu WhatsApp (DDD + Número)"
+                  className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
+                />
+                <input
+                  type="text" value={customerCpf} onChange={(e) => setCustomerCpf(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                  placeholder="Seu CPF (Apenas números)"
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                 />
               </div>
@@ -450,54 +472,85 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
             </div>
           )}
 
-          {/* OVERLAY DE PIX QR CODE */}
-          {pixData && (
-            <div className="absolute inset-0 z-50 bg-white flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in duration-300">
-              <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-6">
-                <CreditCard className="w-8 h-8 text-blue-600" />
+          {/* TELA DE SUCESSO / PIX */}
+          {(orderSuccess || pixData) && (
+            <div className="absolute inset-0 z-[100] bg-white flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-500">
+              <div className="w-20 h-20 bg-green-50 rounded-full flex items-center justify-center mb-6">
+                <CheckCircle className="w-10 h-10 text-green-500" />
               </div>
-              <h3 className="text-xl font-black text-gray-900 mb-2">Seu Pix foi gerado!</h3>
-              <p className="text-gray-500 text-sm mb-8">Escaneie o QR Code abaixo ou copie o código para pagar.</p>
+              
+              <h3 className="text-2xl font-black text-gray-900 mb-2">Pedido Recebido!</h3>
+              <p className="text-gray-500 text-sm mb-8">
+                {paymentMethod === 'pix' 
+                  ? 'Gere seu Pix abaixo para confirmar o pedido.' 
+                  : 'Seu pedido foi enviado para o restaurante via WhatsApp.'}
+              </p>
 
-              <div className="bg-white border-2 border-gray-100 p-4 rounded-3xl mb-8 shadow-sm">
-                <img src={`data:image/png;base64,${pixData.qrCode}`} alt="QR Code Pix" className="w-48 h-48 mx-auto" />
-              </div>
+              {/* Se for PIX, mostra o QR Code */}
+              {pixData ? (
+                <div className="w-full space-y-6 animate-in slide-in-from-bottom-4 duration-500 delay-200">
+                  <div className="bg-white border-2 border-gray-100 p-5 rounded-[2.5rem] shadow-sm max-w-[240px] mx-auto">
+                    <img src={`data:image/png;base64,${pixData.qrCode}`} alt="QR Code Pix" className="w-full h-full" />
+                  </div>
 
-              <div className="w-full space-y-4">
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(pixData.pixCode);
-                    alert('Código Copiado!');
-                  }}
-                  className="w-full bg-gray-100 text-gray-900 font-bold py-4 rounded-2xl flex items-center justify-center gap-2"
-                >
-                  Copiar Código Pix
-                </button>
-                
-                <button
-                  onClick={() => {
-                    // Após pagar (ou para avisar), envia o WhatsApp
-                    const formattedTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPriceWithDelivery);
-                    const message = encodeURIComponent(
-                      `🔥 *PEDIDO COM PIX PAGO* 🔥\n` +
-                      `🆔 *Pedido:* #${pixData.paymentId.slice(-4).toUpperCase()}\n\n` +
-                      `👤 *Cliente:* ${customerName}\n` +
-                      `💰 *Valor:* ${formattedTotal}\n` +
-                      `✅ _Pagamento gerado via Pix automático_`
-                    );
-                    window.location.href = `https://wa.me/${store.whatsapp_number}?text=${message}`;
-                    clearCart();
-                    onClose();
-                  }}
-                  className="w-full bg-green-500 text-white font-bold py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2"
-                >
-                  Já paguei! Avisar no WhatsApp
-                </button>
+                  <div className="space-y-4">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(pixData.pixCode);
+                        alert('Código Copiado!');
+                      }}
+                      className="w-full bg-gray-100 text-gray-900 font-bold py-4 rounded-2xl flex items-center justify-center gap-2"
+                    >
+                      Copiar Código Pix
+                    </button>
 
-                <button onClick={() => setPixData(null)} className="text-gray-400 text-xs font-bold uppercase tracking-widest pt-4">
-                  Voltar e alterar pagamento
-                </button>
-              </div>
+                    <Link 
+                      href={`/order-status/${createdOrderId}`}
+                      className="w-full bg-gray-900 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2"
+                    >
+                      Acompanhar Status do Pedido <ChevronRight className="w-4 h-4" />
+                    </Link>
+                    
+                    <button
+                      onClick={() => {
+                        const formattedTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPriceWithDelivery);
+                        const message = encodeURIComponent(
+                          `🔥 *PEDIDO COM PIX PAGO* 🔥\n` +
+                          `🆔 *Pedido:* #${pixData.paymentId.slice(-4).toUpperCase()}\n\n` +
+                          `👤 *Cliente:* ${customerName}\n` +
+                          `💰 *Valor:* ${formattedTotal}\n` +
+                          `📍 *ACOMPANHAR:* ${window.location.origin}/order-status/${createdOrderId}\n\n` +
+                          `✅ _Pagamento gerado via Pix automático_`
+                        );
+                        window.location.href = `https://wa.me/${store.whatsapp_number}?text=${message}`;
+                        onClose();
+                      }}
+                      className="w-full bg-green-500 text-white font-bold py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2"
+                    >
+                      Já paguei! Avisar no WhatsApp
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Se for Dinheiro, mostra botão de continuar se o redirect falhar */
+                <div className="w-full space-y-4">
+                  <p className="text-xs text-gray-400">Redirecionando para o WhatsApp em instantes...</p>
+                  
+                  <Link 
+                    href={`/order-status/${createdOrderId}`}
+                    className="w-full bg-orange-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2"
+                  >
+                    Acompanhar Status do Pedido <ChevronRight className="w-4 h-4" />
+                  </Link>
+
+                  <button 
+                    onClick={() => onClose()}
+                    className="w-full bg-gray-100 text-gray-900 font-bold py-4 rounded-2xl"
+                  >
+                    Voltar para o Cardápio
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

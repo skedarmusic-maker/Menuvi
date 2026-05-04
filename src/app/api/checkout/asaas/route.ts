@@ -12,7 +12,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { orderId, restaurantId, customerName, customerPhone, totalAmount } = await req.json();
+    const { orderId, restaurantId, customerName, customerPhone, customerCpf, totalAmount } = await req.json();
 
     // 1. Buscar dados do restaurante para o Split
     const { data: restaurant, error: restError } = await supabaseAdmin
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     // 2. Criar ou buscar cliente no Asaas
     // Simplificado: Criando sempre um novo para o exemplo, o ideal é vincular ao e-mail/telefone
-    const asaasCustomer = await createAsaasCustomer(customerName, customerPhone);
+    const asaasCustomer = await createAsaasCustomer(customerName, customerPhone, customerCpf);
 
     // 3. Preparar o Split
     // Se o restaurante tiver uma wallet cadastrada, fazemos o split.
