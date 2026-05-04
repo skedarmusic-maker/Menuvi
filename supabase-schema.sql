@@ -12,6 +12,14 @@ create table public.restaurants (
     payment_gateway_provider text default 'asaas', -- 'asaas', 'mercadopago' ou null
     gateway_wallet_id text, -- ID da carteira do restaurante no gateway (para o split)
     split_fee_percent numeric(5,2) default 1.00, -- 1.00 = 1%
+    
+    -- Opções de Pagamento (Controle do Lojista)
+    accepts_online_pix boolean default true,
+    accepts_online_credit_card boolean default false,
+    accepts_delivery_pix boolean default true,
+    accepts_delivery_cash boolean default true,
+    accepts_delivery_card boolean default true,
+    
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 

@@ -33,7 +33,7 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
   });
   const [deliveryFee, setDeliveryFee] = useState<number | null>(null);
   const [calculatingFee, setCalculatingFee] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'dinheiro'>('pix');
+  const [paymentMethod, setPaymentMethod] = useState<string>('');
   const [userId, setUserId] = useState<string | null>(null);
   const [savedProfile, setSavedProfile] = useState<any>(null);
   const [useSavedAddress, setUseSavedAddress] = useState(false);
@@ -119,6 +119,11 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
       return;
     }
 
+    if (!paymentMethod) {
+      alert('Por favor, selecione uma forma de pagamento antes de finalizar.');
+      return;
+    }
+
     const fullAddress = `${address.street}, ${address.number}${address.complement ? ` (${address.complement})` : ''} - ${address.neighborhood}${address.cep ? ` - CEP: ${address.cep}` : ''}`;
 
     setLoading(true);
@@ -176,11 +181,8 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
       const { error: itemsError } = await supabase.from('order_items').insert(itemsToInsert);
       if (itemsError) throw itemsError;
 
-      // 3. Gerar Mensagem WhatsApp formatada
-      const formattedTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPriceWithDelivery);
-
-      // --- LOGICA DE PIX COM ASAAS ---
-      if (paymentMethod === 'pix') {
+      // --- LOGICA ONLINE (PIX OU CARTÃO) COM ASAAS ---
+      if (paymentMethod === 'online_pix' || paymentMethod === 'online_credit_card') {
         const response = await fetch('/api/checkout/asaas', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -191,66 +193,35 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
             customerPhone,
             customerCpf,
             totalAmount: totalPriceWithDelivery,
+            paymentMethod: paymentMethod, // informa a API se é pix ou credit_card
           }),
         });
 
         if (!response.ok) {
           const err = await response.json();
-          throw new Error(err.error || 'Erro ao gerar Pix');
+          throw new Error(err.error || 'Erro ao gerar Pagamento');
         }
 
         const data = await response.json();
-        setPixData(data);
-        setLoading(false);
-        return; // Para aqui para mostrar o QR Code
+        
+        if (paymentMethod === 'online_credit_card') {
+          // Limpa o carrinho e redireciona pro Asaas
+          clearCart();
+          window.location.href = data.invoiceUrl;
+          return;
+        } else {
+          // Se for PIX, mostra o QR Code na mesma tela
+          setPixData(data);
+          setLoading(false);
+          return;
+        }
       }
 
-      const message = encodeURIComponent(
-        `🔥 *NOVO PEDIDO NO MENUVI* 🔥\n` +
-        `---------------------------------------\n` +
-        `🆔 *Pedido:* #${order.id.slice(0, 4).toUpperCase()}\n\n` +
-
-        `👤 *DADOS DO CLIENTE*\n` +
-        `*Nome:* ${customerName}\n` +
-        `📞 *WhatsApp:* ${customerPhone}\n\n` +
-
-        `📍 *ENDEREÇO DE ENTREGA*\n` +
-        `*Rua:* ${address.street}, ${address.number}\n` +
-        `*Bairro:* ${address.neighborhood}\n` +
-        `${address.complement ? `*Compl.:* ${address.complement}\n` : ''}` +
-        `${address.cep ? `*CEP:* ${address.cep}\n` : ''}` +
-        `🛵 *Frete:* ${deliveryFee === 0 ? 'Grátis' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(deliveryFee || 0)}\n\n` +
-
-        `🛒 *ITENS DO PEDIDO*\n` +
-        `---------------------------------------\n` +
-        cart.map(item =>
-          `✅ *${item.quantity}x ${item.name}*\n` +
-          `   ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.price * item.quantity)}` +
-          `${item.observations ? `\n   📝 _Obs: ${item.observations}_` : ''}`
-        ).join('\n\n') +
-        `\n\n---------------------------------------\n` +
-        `💰 *VALOR TOTAL:* ${formattedTotal}\n` +
-        `💳 *FORMA DE PAGAMENTO:* ${paymentMethod.toUpperCase()}\n` +
-        `---------------------------------------\n` +
-        `📍 *ACOMPANHAR STATUS:* ${window.location.origin}/order-status/${order.id}\n` +
-        `---------------------------------------\n\n` +
-        `_Enviado via Menuvi SaaS_ 🚀`
-      );
-
-      const whatsappUrl = `https://wa.me/${store.whatsapp_number}?text=${message}`;
-
-      // 4. Sucesso!
+      // --- LOGICA NA ENTREGA ---
+      // Se não for pagamento online, apenas mostra a tela de sucesso.
+      // O Kanban cuidará do resto (não redirecionamos mais pro WhatsApp, a não ser que o lojista queira, mas seguimos a orientação de centralizar no painel).
       setOrderSuccess(true);
       clearCart();
-
-      // Se for dinheiro, prepara o link do WhatsApp
-      const finalWhatsappUrl = `https://wa.me/${store.whatsapp_number}?text=${message}`;
-
-      if (paymentMethod === 'dinheiro') {
-        setTimeout(() => {
-          window.location.href = finalWhatsappUrl;
-        }, 3000); // Redireciona após 3 segundos
-      }
 
     } catch (error: any) {
       console.error('Erro detalhado ao processar pedido:', error);
@@ -450,24 +421,68 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                 )}
               </div>
 
-              <div className="space-y-4 pb-8">
+              <div className="space-y-6 pb-8">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2"><CreditCard className="w-4 h-4" /> Forma de Pagamento</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={() => setPaymentMethod('pix')}
-                    className={`p-4 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${paymentMethod === 'pix' ? 'border-gray-950 bg-gray-100' : 'border-gray-100 opacity-40'}`}
-                  >
-                    <div className="w-8 h-8 flex items-center justify-center font-black text-gray-900">PIX</div>
-                    <span className="text-sm font-black text-gray-900">Pix na hora</span>
-                  </button>
-                  <button
-                    onClick={() => setPaymentMethod('dinheiro')}
-                    className={`p-4 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${paymentMethod === 'dinheiro' ? 'border-gray-950 bg-gray-100' : 'border-gray-100 opacity-40'}`}
-                  >
-                    <div className="w-8 h-8 flex items-center justify-center font-black text-gray-900">R$</div>
-                    <span className="text-sm font-black text-gray-900">Dinheiro</span>
-                  </button>
-                </div>
+                
+                {/* PAGAMENTO ONLINE */}
+                {(store.accepts_online_pix || store.accepts_online_credit_card) && (
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-gray-500 ml-1">Pelo App</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {store.accepts_online_pix && (
+                        <button
+                          onClick={() => setPaymentMethod('online_pix')}
+                          className={`p-4 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${paymentMethod === 'online_pix' ? 'border-gray-950 bg-gray-100' : 'border-gray-100 opacity-60 hover:opacity-100'}`}
+                        >
+                          <div className="w-8 h-8 flex items-center justify-center font-black text-gray-900">PIX</div>
+                          <span className="text-xs font-black text-gray-900 uppercase">Pix (Rápido)</span>
+                        </button>
+                      )}
+                      {store.accepts_online_credit_card && (
+                        <button
+                          onClick={() => setPaymentMethod('online_credit_card')}
+                          className={`p-4 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${paymentMethod === 'online_credit_card' ? 'border-gray-950 bg-gray-100' : 'border-gray-100 opacity-60 hover:opacity-100'}`}
+                        >
+                          <div className="w-8 h-8 flex items-center justify-center font-black text-gray-900"><CreditCard className="w-5 h-5"/></div>
+                          <span className="text-xs font-black text-gray-900 uppercase text-center leading-tight">Cartão<br/>de Crédito</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* PAGAMENTO NA ENTREGA */}
+                {(store.accepts_delivery_pix || store.accepts_delivery_cash || store.accepts_delivery_card) && (
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-gray-500 ml-1">Na Entrega</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      {store.accepts_delivery_pix && (
+                        <button
+                          onClick={() => setPaymentMethod('delivery_pix')}
+                          className={`p-3 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${paymentMethod === 'delivery_pix' ? 'border-gray-950 bg-gray-100' : 'border-gray-100 opacity-60 hover:opacity-100'}`}
+                        >
+                          <span className="text-xs font-black text-gray-900 uppercase">Pix Entregador</span>
+                        </button>
+                      )}
+                      {store.accepts_delivery_card && (
+                        <button
+                          onClick={() => setPaymentMethod('delivery_card')}
+                          className={`p-3 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${paymentMethod === 'delivery_card' ? 'border-gray-950 bg-gray-100' : 'border-gray-100 opacity-60 hover:opacity-100'}`}
+                        >
+                          <span className="text-xs font-black text-gray-900 uppercase">Cartão (Máquina)</span>
+                        </button>
+                      )}
+                      {store.accepts_delivery_cash && (
+                        <button
+                          onClick={() => setPaymentMethod('delivery_cash')}
+                          className={`p-3 border-2 rounded-2xl flex flex-col items-center gap-2 transition-all ${paymentMethod === 'delivery_cash' ? 'border-gray-950 bg-gray-100' : 'border-gray-100 opacity-60 hover:opacity-100'}`}
+                        >
+                          <span className="text-xs font-black text-gray-900 uppercase">Dinheiro</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -481,12 +496,12 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
               
               <h3 className="text-2xl font-black text-gray-900 mb-2">Pedido Recebido!</h3>
               <p className="text-gray-500 text-sm mb-8">
-                {paymentMethod === 'pix' 
+                {paymentMethod === 'online_pix' 
                   ? 'Gere seu Pix abaixo para confirmar o pedido.' 
-                  : 'Seu pedido foi enviado para o restaurante via WhatsApp.'}
+                  : 'Acompanhe o status do seu pedido pelo aplicativo.'}
               </p>
 
-              {/* Se for PIX, mostra o QR Code */}
+              {/* Se for PIX Online, mostra o QR Code */}
               {pixData ? (
                 <div className="w-full space-y-6 animate-in slide-in-from-bottom-4 duration-500 delay-200">
                   <div className="bg-white border-2 border-gray-100 p-5 rounded-[2.5rem] shadow-sm max-w-[240px] mx-auto">
@@ -501,7 +516,7 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                       }}
                       className="w-full bg-gray-100 text-gray-900 font-bold py-4 rounded-2xl flex items-center justify-center gap-2"
                     >
-                      Copiar Código Pix
+                      Copiar Código Copia e Cola
                     </button>
 
                     <Link 
@@ -510,32 +525,11 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                     >
                       Acompanhar Status do Pedido <ChevronRight className="w-4 h-4" />
                     </Link>
-                    
-                    <button
-                      onClick={() => {
-                        const formattedTotal = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPriceWithDelivery);
-                        const message = encodeURIComponent(
-                          `🔥 *PEDIDO COM PIX PAGO* 🔥\n` +
-                          `🆔 *Pedido:* #${pixData.paymentId.slice(-4).toUpperCase()}\n\n` +
-                          `👤 *Cliente:* ${customerName}\n` +
-                          `💰 *Valor:* ${formattedTotal}\n` +
-                          `📍 *ACOMPANHAR:* ${window.location.origin}/order-status/${createdOrderId}\n\n` +
-                          `✅ _Pagamento gerado via Pix automático_`
-                        );
-                        window.location.href = `https://wa.me/${store.whatsapp_number}?text=${message}`;
-                        onClose();
-                      }}
-                      className="w-full bg-green-500 text-white font-bold py-4 rounded-2xl shadow-lg flex items-center justify-center gap-2"
-                    >
-                      Já paguei! Avisar no WhatsApp
-                    </button>
                   </div>
                 </div>
               ) : (
-                /* Se for Dinheiro, mostra botão de continuar se o redirect falhar */
+                /* Pagamento na Entrega (Dinheiro/Cartão/Pix) */
                 <div className="w-full space-y-4">
-                  <p className="text-xs text-gray-400">Redirecionando para o WhatsApp em instantes...</p>
-                  
                   <Link 
                     href={`/order-status/${createdOrderId}`}
                     className="w-full bg-orange-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2"

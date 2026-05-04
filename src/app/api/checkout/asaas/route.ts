@@ -12,7 +12,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { orderId, restaurantId, customerName, customerPhone, customerCpf, totalAmount } = await req.json();
+    const { orderId, restaurantId, customerName, customerPhone, customerCpf, totalAmount, paymentMethod } = await req.json();
 
     // 1. Buscar dados do restaurante para o Split
     const { data: restaurant, error: restError } = await supabaseAdmin
@@ -35,9 +35,12 @@ export async function POST(req: NextRequest) {
 
     // 4. Criar o Pagamento no Asaas
     const today = new Date().toISOString().split('T')[0];
+    const isCreditCard = paymentMethod === 'online_credit_card';
+    const asaasBillingType = isCreditCard ? 'CREDIT_CARD' : 'PIX';
+
     const payment = await createAsaasPayment({
       customer: asaasCustomer.id,
-      billingType: 'PIX',
+      billingType: asaasBillingType,
       value: totalAmount,
       dueDate: today,
       description: `Pedido #${orderId.slice(0, 8)} - ${restaurant.name}`,
@@ -47,25 +50,35 @@ export async function POST(req: NextRequest) {
 
     console.log('💳 [Asaas Debug] Pagamento Criado:', JSON.stringify(payment, null, 2));
 
-    // 5. Buscar o QR Code do Pix
-    const pixData = await getAsaasPixQrCode(payment.id);
+    let responsePayload: any = {
+      paymentId: payment.id,
+    };
 
-    // 6. Atualizar o pedido no Supabase com os dados do pagamento
+    // 5. Atualizar o pedido no Supabase
+    const updateData: any = {
+      gateway_payment_id: payment.id,
+      payment_status: 'pending'
+    };
+
+    if (isCreditCard) {
+      // Retorna o link de pagamento do Asaas
+      responsePayload.invoiceUrl = payment.invoiceUrl;
+    } else {
+      // 5.1 Buscar o QR Code do Pix
+      const pixData = await getAsaasPixQrCode(payment.id);
+      responsePayload.qrCode = pixData.encodedImage;
+      responsePayload.pixCode = pixData.payload;
+      
+      updateData.payment_qr_code = pixData.encodedImage;
+      updateData.payment_qr_code_text = pixData.payload;
+    }
+
     await supabaseAdmin
       .from('orders')
-      .update({
-        gateway_payment_id: payment.id,
-        payment_qr_code: pixData.encodedImage,
-        payment_qr_code_text: pixData.payload,
-        payment_status: 'pending'
-      })
+      .update(updateData)
       .eq('id', orderId);
 
-    return NextResponse.json({
-      paymentId: payment.id,
-      qrCode: pixData.encodedImage,
-      pixCode: pixData.payload,
-    });
+    return NextResponse.json(responsePayload);
 
   } catch (error: any) {
     console.error('Erro no checkout Asaas:', error);

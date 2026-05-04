@@ -370,15 +370,22 @@ function OrderCard({ order, isExpanded, onToggle, onTogglePix, onAdvance, onCanc
         {/* Linha 2: Badges de pagamento */}
         <div className="flex items-center gap-1.5 flex-wrap mb-3">
           <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${config.bg} ${config.color}`}>
-            {order.payment_method.toUpperCase()}
+            {order.payment_method === 'online_pix' ? 'PIX APP' :
+             order.payment_method === 'online_credit_card' ? 'CARTÃO APP' :
+             order.payment_method === 'delivery_pix' ? 'PIX ENTREGA' :
+             order.payment_method === 'delivery_cash' ? 'DINHEIRO' :
+             order.payment_method === 'delivery_card' ? 'CARTÃO ENTREGA' :
+             order.payment_method.toUpperCase()}
           </span>
-          {order.payment_method === 'pix' && (
-            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border ${
+          {order.payment_method.includes('pix') && (
+            <span className={`text-[10px] font-black px-2 py-0.5 rounded-md border cursor-pointer ${
               order.pix_confirmed
                 ? 'bg-green-500/15 border-green-500/30 text-green-400'
                 : 'bg-amber-500/15 border-amber-500/30 text-amber-400 animate-pulse'
-            }`}>
-              {order.pix_confirmed ? '\u2713 PIX RECEBIDO' : '\u23f3 AGUARDANDO PIX'}
+            }`}
+            onClick={(e) => { e.stopPropagation(); onTogglePix(); }}
+            >
+              {order.pix_confirmed ? '\u2713 PIX OK' : '\u23f3 AGUARDANDO PIX'}
             </span>
           )}
         </div>

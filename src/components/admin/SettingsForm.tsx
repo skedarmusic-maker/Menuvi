@@ -38,6 +38,14 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
       { min: 2, max: 5, fee: 7 }
     ]
   );
+  
+  // Opções de Pagamento
+  const [acceptsOnlinePix, setAcceptsOnlinePix] = useState(restaurant.accepts_online_pix ?? true);
+  const [acceptsOnlineCredit, setAcceptsOnlineCredit] = useState(restaurant.accepts_online_credit_card ?? false);
+  const [acceptsDeliveryPix, setAcceptsDeliveryPix] = useState(restaurant.accepts_delivery_pix ?? true);
+  const [acceptsDeliveryCash, setAcceptsDeliveryCash] = useState(restaurant.accepts_delivery_cash ?? true);
+  const [acceptsDeliveryCard, setAcceptsDeliveryCard] = useState(restaurant.accepts_delivery_card ?? true);
+
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -87,10 +95,15 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
         banner_url: bannerUrl,
         address,
         opening_hours: openingHours,
-        payment_methods: paymentMethods,
+        payment_methods: paymentMethods, // Mantido como campo livre para observações
         cep,
         has_distance_delivery: hasDistanceDelivery,
         delivery_rules: deliveryRules,
+        accepts_online_pix: acceptsOnlinePix,
+        accepts_online_credit_card: acceptsOnlineCredit,
+        accepts_delivery_pix: acceptsDeliveryPix,
+        accepts_delivery_cash: acceptsDeliveryCash,
+        accepts_delivery_card: acceptsDeliveryCard,
       })
       .eq('id', restaurant.id);
 
@@ -233,18 +246,93 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
         />
       </div>
 
-      {/* Pagamento */}
+      {/* Opções de Pagamento */}
       <div>
-        <label className="text-gray-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2 mb-3">
-          <CreditCard className="w-4 h-4" /> Formas de Pagamento
+        <label className="text-gray-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2 mb-4">
+          <CreditCard className="w-4 h-4" /> Configurações de Pagamento
         </label>
-        <input
-          type="text"
-          value={paymentMethods}
-          onChange={(e) => setPaymentMethods(e.target.value)}
-          placeholder="Ex: Cartões, Pix e Dinheiro"
-          className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all"
-        />
+        
+        <div className="space-y-6">
+          {/* Pagamento Online */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+            <h4 className="text-sm font-bold text-white mb-4">Pagamento Online (App)</h4>
+            <div className="space-y-4">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <p className="text-sm text-gray-200 font-bold">Pix Integrado</p>
+                  <p className="text-xs text-gray-500">QR Code gerado automaticamente via Asaas</p>
+                </div>
+                <div className={`w-12 h-6 rounded-full transition-colors relative ${acceptsOnlinePix ? 'bg-orange-500' : 'bg-gray-700'}`}>
+                  <input type="checkbox" className="sr-only" checked={acceptsOnlinePix} onChange={(e) => setAcceptsOnlinePix(e.target.checked)} />
+                  <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${acceptsOnlinePix ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                </div>
+              </label>
+
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <p className="text-sm text-gray-200 font-bold">Cartão de Crédito</p>
+                  <p className="text-xs text-gray-500">Link de pagamento seguro Asaas</p>
+                </div>
+                <div className={`w-12 h-6 rounded-full transition-colors relative ${acceptsOnlineCredit ? 'bg-orange-500' : 'bg-gray-700'}`}>
+                  <input type="checkbox" className="sr-only" checked={acceptsOnlineCredit} onChange={(e) => setAcceptsOnlineCredit(e.target.checked)} />
+                  <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${acceptsOnlineCredit ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Pagamento na Entrega */}
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+            <h4 className="text-sm font-bold text-white mb-4">Pagamento na Entrega</h4>
+            <div className="space-y-4">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <p className="text-sm text-gray-200 font-bold">Pix na Entrega</p>
+                  <p className="text-xs text-gray-500">Chave do entregador ou estabelecimento</p>
+                </div>
+                <div className={`w-12 h-6 rounded-full transition-colors relative ${acceptsDeliveryPix ? 'bg-orange-500' : 'bg-gray-700'}`}>
+                  <input type="checkbox" className="sr-only" checked={acceptsDeliveryPix} onChange={(e) => setAcceptsDeliveryPix(e.target.checked)} />
+                  <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${acceptsDeliveryPix ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                </div>
+              </label>
+
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <p className="text-sm text-gray-200 font-bold">Dinheiro</p>
+                  <p className="text-xs text-gray-500">Com opção de troco</p>
+                </div>
+                <div className={`w-12 h-6 rounded-full transition-colors relative ${acceptsDeliveryCash ? 'bg-orange-500' : 'bg-gray-700'}`}>
+                  <input type="checkbox" className="sr-only" checked={acceptsDeliveryCash} onChange={(e) => setAcceptsDeliveryCash(e.target.checked)} />
+                  <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${acceptsDeliveryCash ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                </div>
+              </label>
+
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <p className="text-sm text-gray-200 font-bold">Cartão (Maquininha)</p>
+                  <p className="text-xs text-gray-500">O entregador leva a máquina</p>
+                </div>
+                <div className={`w-12 h-6 rounded-full transition-colors relative ${acceptsDeliveryCard ? 'bg-orange-500' : 'bg-gray-700'}`}>
+                  <input type="checkbox" className="sr-only" checked={acceptsDeliveryCard} onChange={(e) => setAcceptsDeliveryCard(e.target.checked)} />
+                  <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${acceptsDeliveryCard ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                </div>
+              </label>
+            </div>
+          </div>
+          
+          <div>
+            <label className="text-gray-400 text-xs font-bold uppercase tracking-wider block mb-2">
+              Observações Adicionais (Opcional)
+            </label>
+            <input
+              type="text"
+              value={paymentMethods}
+              onChange={(e) => setPaymentMethods(e.target.value)}
+              placeholder="Ex: Aceitamos Vale Refeição da Alelo na entrega"
+              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all"
+            />
+          </div>
+        </div>
       </div>
 
       {/* Configurações de Frete */}

@@ -182,7 +182,14 @@ export default function OrderStatusPage() {
                   <Clock className="w-4 h-4 text-gray-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold">{order.payment_method.toUpperCase()}</p>
+                  <p className="text-sm font-bold">
+                    {order.payment_method === 'online_pix' ? 'PIX (PELO APP)' :
+                     order.payment_method === 'online_credit_card' ? 'CARTÃO DE CRÉDITO (PELO APP)' :
+                     order.payment_method === 'delivery_pix' ? 'PIX NA ENTREGA' :
+                     order.payment_method === 'delivery_cash' ? 'DINHEIRO NA ENTREGA' :
+                     order.payment_method === 'delivery_card' ? 'CARTÃO NA ENTREGA' :
+                     order.payment_method.toUpperCase()}
+                  </p>
                   <p className="text-[10px] text-gray-500 uppercase font-black">{order.payment_status === 'paid' ? 'Pago' : 'Pendente'}</p>
                 </div>
               </div>
