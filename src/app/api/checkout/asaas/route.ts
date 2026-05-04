@@ -30,15 +30,8 @@ export async function POST(req: NextRequest) {
     const asaasCustomer = await createAsaasCustomer(customerName, customerPhone, customerCpf);
 
     // 3. Preparar o Split
-    // Se o restaurante tiver uma wallet cadastrada, fazemos o split.
-    // No modelo onde o Dev é a conta principal:
-    // O pagamento cai na conta do Dev, e o Split envia a parte do lojista para a conta dele.
-    const split = restaurant.gateway_wallet_id ? [
-      {
-        walletId: restaurant.gateway_wallet_id,
-        percentualValue: 100 - (restaurant.split_fee_percent || 1), // O que sobra para o lojista (ex: 99%)
-      }
-    ] : undefined;
+    // TEMPORARIAMENTE DESATIVADO PARA TESTAR SE É O SPLIT QUE ESTÁ BLOQUEANDO O PIX
+    const split = undefined;
 
     // 4. Criar o Pagamento no Asaas
     const today = new Date().toISOString().split('T')[0];
@@ -51,6 +44,8 @@ export async function POST(req: NextRequest) {
       externalReference: orderId,
       split: split,
     });
+
+    console.log('💳 [Asaas Debug] Pagamento Criado:', JSON.stringify(payment, null, 2));
 
     // 5. Buscar o QR Code do Pix
     const pixData = await getAsaasPixQrCode(payment.id);
