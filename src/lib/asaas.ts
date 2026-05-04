@@ -27,7 +27,7 @@ export async function createAsaasCustomer(name: string, phone: string, cpfCnpj: 
 
 export async function createAsaasPayment(data: {
   customer: string;
-  billingType: 'PIX';
+  billingType: 'PIX' | 'CREDIT_CARD';
   value: number;
   dueDate: string;
   description: string;
