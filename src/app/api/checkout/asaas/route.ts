@@ -12,7 +12,18 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { orderId, restaurantId, customerName, customerPhone, customerCpf, totalAmount, paymentMethod } = await req.json();
+    const body = await req.json();
+    const { 
+      orderId, 
+      restaurantId, 
+      customerName, 
+      customerPhone, 
+      customerCpf, 
+      totalAmount, 
+      paymentMethod,
+      cardData,
+      customerAddress
+    } = body;
 
     // 1. Buscar dados do restaurante para o Split
     const { data: restaurant, error: restError } = await supabaseAdmin
@@ -38,6 +49,30 @@ export async function POST(req: NextRequest) {
     const isCreditCard = paymentMethod === 'online_credit_card';
     const asaasBillingType = isCreditCard ? 'CREDIT_CARD' : 'PIX';
 
+    // 4.1 Preparar dados do cartão se for o caso
+    let creditCardData = undefined;
+    let creditCardHolderInfo = undefined;
+
+    if (isCreditCard && cardData) {
+      const [expiryMonth, expiryYear] = cardData.expiry.split('/');
+      creditCardData = {
+        holderName: cardData.holderName,
+        number: cardData.number,
+        expiryMonth: expiryMonth,
+        expiryYear: '20' + expiryYear,
+        ccv: cardData.cvv,
+      };
+
+      creditCardHolderInfo = {
+        name: customerName,
+        email: 'cliente@menuvi.app', // Placeholder ou pegar do cadastro
+        cpfCnpj: customerCpf,
+        postalCode: customerAddress?.cep || '',
+        addressNumber: customerAddress?.number || 'S/N',
+        phone: customerPhone,
+      };
+    }
+
     const payment = await createAsaasPayment({
       customer: asaasCustomer.id,
       billingType: asaasBillingType,
@@ -46,6 +81,11 @@ export async function POST(req: NextRequest) {
       description: `Pedido #${orderId.slice(0, 8)} - ${restaurant.name}`,
       externalReference: orderId,
       split: split,
+      // Se for cartão, envia os dados extras
+      ...(isCreditCard ? {
+        creditCard: creditCardData,
+        creditCardHolderInfo: creditCardHolderInfo,
+      } : {}),
     });
 
     console.log('💳 [Asaas Debug] Pagamento Criado:', JSON.stringify(payment, null, 2));

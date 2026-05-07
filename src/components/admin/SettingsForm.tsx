@@ -39,7 +39,19 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
     ]
   );
   
-  // Opções de Pagamento
+  // Horários de Funcionamento Estruturados
+  const DAYS_OF_WEEK = [
+    'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'
+  ];
+
+  const [workingHours, setWorkingHours] = useState(
+    restaurant.working_hours || DAYS_OF_WEEK.map(day => ({
+      day,
+      isOpen: true,
+      open: '08:00',
+      close: '22:00'
+    }))
+  );
   const [acceptsOnlinePix, setAcceptsOnlinePix] = useState(restaurant.accepts_online_pix ?? true);
   const [acceptsOnlineCredit, setAcceptsOnlineCredit] = useState(restaurant.accepts_online_credit_card ?? false);
   const [acceptsDeliveryPix, setAcceptsDeliveryPix] = useState(restaurant.accepts_delivery_pix ?? true);
@@ -95,7 +107,8 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
         banner_url: bannerUrl,
         address,
         opening_hours: openingHours,
-        payment_methods: paymentMethods, // Mantido como campo livre para observações
+        working_hours: workingHours, // Salvando o JSON estruturado
+        payment_methods: paymentMethods,
         cep,
         has_distance_delivery: hasDistanceDelivery,
         delivery_rules: deliveryRules,
@@ -232,17 +245,79 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
         />
       </div>
 
-      {/* Horários */}
+      {/* Horário de Funcionamento Estruturado */}
+      <div className="bg-gray-900 border border-gray-800 p-6 rounded-3xl space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-orange-500/10 flex items-center justify-center text-orange-500">
+            <Clock className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-white font-bold">Horário de Funcionamento</h3>
+            <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest">Defina quando sua loja está aberta</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {workingHours.map((wh: any, index: number) => (
+            <div key={wh.day} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-800/30 rounded-2xl border border-gray-700/30 gap-4 transition-all hover:border-gray-600">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const newHours = [...workingHours];
+                    newHours[index].isOpen = !newHours[index].isOpen;
+                    setWorkingHours(newHours);
+                  }}
+                  className={`w-12 h-6 rounded-full transition-colors relative ${wh.isOpen ? 'bg-orange-500' : 'bg-gray-700'}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${wh.isOpen ? 'left-7' : 'left-1'}`} />
+                </button>
+                <span className={`font-bold text-sm ${wh.isOpen ? 'text-white' : 'text-gray-600'}`}>{wh.day}</span>
+              </div>
+
+              {wh.isOpen ? (
+                <div className="flex items-center gap-2 animate-in fade-in duration-300">
+                  <input
+                    type="time"
+                    value={wh.open}
+                    onChange={(e) => {
+                      const newHours = [...workingHours];
+                      newHours[index].open = e.target.value;
+                      setWorkingHours(newHours);
+                    }}
+                    className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-orange-500"
+                  />
+                  <span className="text-gray-600 text-[10px] font-black uppercase">até</span>
+                  <input
+                    type="time"
+                    value={wh.close}
+                    onChange={(e) => {
+                      const newHours = [...workingHours];
+                      newHours[index].close = e.target.value;
+                      setWorkingHours(newHours);
+                    }}
+                    className="bg-gray-900 border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-orange-500"
+                  />
+                </div>
+              ) : (
+                <span className="text-[10px] font-black text-gray-700 uppercase tracking-widest">Fechado</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Campo de observações adicionais (opcional) */}
       <div>
-        <label className="text-gray-400 text-xs font-bold uppercase tracking-wider flex items-center gap-2 mb-3">
-          <Clock className="w-4 h-4" /> Horário de Funcionamento
+        <label className="text-gray-400 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 mb-3 px-2">
+          <Info className="w-4 h-4 text-orange-500" /> Observações de Horário (Ex: Feriados)
         </label>
         <textarea
           value={openingHours}
           onChange={(e) => setOpeningHours(e.target.value)}
-          placeholder="Ex: Seg a Sex: 11h às 22h / Sábado: 18h às 23h"
+          placeholder="Ex: Não abrimos em feriados nacionais."
           rows={2}
-          className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all resize-none"
+          className="w-full bg-gray-900 border border-gray-700 rounded-2xl px-5 py-4 text-white text-sm focus:outline-none focus:border-orange-500 transition-all placeholder:text-gray-700"
         />
       </div>
 

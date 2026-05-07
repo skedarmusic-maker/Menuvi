@@ -147,7 +147,13 @@ add column if not exists delivery_rules jsonb default '[
   {"min": 0, "max": 2, "fee": 0},
   {"min": 2, "max": 5, "fee": 7},
   {"min": 5, "max": 10, "fee": 12}
-]'::jsonb;
+]'::jsonb,
+add column if not exists working_hours jsonb,
+add column if not exists accepts_online_pix boolean default true,
+add column if not exists accepts_online_credit_card boolean default false,
+add column if not exists accepts_delivery_pix boolean default true,
+add column if not exists accepts_delivery_cash boolean default true,
+add column if not exists accepts_delivery_card boolean default true;
 
 -- Adiciona politica para permitir Super Admins ler tudo
 create policy "SuperAdmin can manage all restaurants" on public.restaurants

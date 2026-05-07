@@ -24,6 +24,12 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerCpf, setCustomerCpf] = useState('');
+  const [cardData, setCardData] = useState({
+    number: '',
+    holderName: '',
+    expiry: '',
+    cvv: ''
+  });
   const [address, setAddress] = useState({
     street: '',
     number: '',
@@ -193,7 +199,9 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
             customerPhone,
             customerCpf,
             totalAmount: totalPriceWithDelivery,
-            paymentMethod: paymentMethod, // informa a API se é pix ou credit_card
+            paymentMethod: paymentMethod,
+            cardData: paymentMethod === 'online_credit_card' ? cardData : undefined,
+            customerAddress: address,
           }),
         });
 
@@ -205,9 +213,9 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
         const data = await response.json();
         
         if (paymentMethod === 'online_credit_card') {
-          // Limpa o carrinho e redireciona pro Asaas
+          setOrderSuccess(true);
+          setLoading(false);
           clearCart();
-          window.location.href = data.invoiceUrl;
           return;
         } else {
           // Se for PIX, mostra o QR Code na mesma tela
@@ -480,6 +488,52 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                           <span className="text-xs font-black text-gray-900 uppercase">Dinheiro</span>
                         </button>
                       )}
+                    </div>
+                  </div>
+                )}
+
+                {/* FORMULÁRIO DE CARTÃO (SELECIONADO) */}
+                {paymentMethod === 'online_credit_card' && (
+                  <div className="space-y-4 bg-gray-50 p-5 rounded-3xl border border-gray-100 animate-in slide-in-from-top-4 duration-500 mb-6">
+                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Dados do Cartão</h4>
+                    
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="0000 0000 0000 0000"
+                        value={cardData.number}
+                        onChange={(e) => setCardData({...cardData, number: e.target.value.replace(/\D/g, '').slice(0, 16)})}
+                        className="w-full bg-white border border-gray-200 rounded-xl p-4 text-sm font-bold text-gray-900 focus:outline-none focus:border-gray-950 transition-all"
+                      />
+                      
+                      <input
+                        type="text"
+                        placeholder="Nome como está no cartão"
+                        value={cardData.holderName}
+                        onChange={(e) => setCardData({...cardData, holderName: e.target.value.toUpperCase()})}
+                        className="w-full bg-white border border-gray-200 rounded-xl p-4 text-sm font-bold text-gray-900 focus:outline-none focus:border-gray-950 transition-all"
+                      />
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          placeholder="MM/AA"
+                          value={cardData.expiry}
+                          onChange={(e) => {
+                            let val = e.target.value.replace(/\D/g, '');
+                            if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2, 4);
+                            setCardData({...cardData, expiry: val});
+                          }}
+                          className="w-full bg-white border border-gray-200 rounded-xl p-4 text-sm font-bold text-gray-900 focus:outline-none focus:border-gray-950 transition-all"
+                        />
+                        <input
+                          type="text"
+                          placeholder="CVV"
+                          value={cardData.cvv}
+                          onChange={(e) => setCardData({...cardData, cvv: e.target.value.replace(/\D/g, '').slice(0, 4)})}
+                          className="w-full bg-white border border-gray-200 rounded-xl p-4 text-sm font-bold text-gray-900 focus:outline-none focus:border-gray-950 transition-all"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}

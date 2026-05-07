@@ -37,6 +37,8 @@ export async function createAsaasPayment(data: {
     percentualValue?: number;
     fixedValue?: number;
   }[];
+  creditCard?: any;
+  creditCardHolderInfo?: any;
 }) {
   const response = await fetch(`${ASAAS_API_URL}/payments`, {
     method: 'POST',
