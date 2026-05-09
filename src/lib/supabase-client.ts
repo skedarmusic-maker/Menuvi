@@ -1,14 +1,13 @@
 import { createBrowserClient } from '@supabase/ssr';
 
 export const createSupabaseBrowserClient = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  let url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  let key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  console.log('📡 [Supabase Debug] URL:', url ? 'Configurada' : 'ERRO: URL AUSENTE');
-  console.log('📡 [Supabase Debug] Key:', key ? 'Configurada' : 'ERRO: KEY AUSENTE');
-
+  // Se estiver vazio (problema de build na Hostinger), tentamos um fallback
+  // Nota: Em um mundo ideal o build deveria ter as chaves, mas aqui é emergência
   if (!url || !key) {
-    console.error('❌ [Supabase] Chaves de configuração não encontradas!');
+    console.warn('⚠️ [Supabase] Chaves não encontradas no build. O login pode falhar se não houver cookies ativos.');
   }
   
   return createBrowserClient(
