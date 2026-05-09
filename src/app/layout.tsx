@@ -7,8 +7,13 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Menuvi - Cardápio Digital Premium',
-  description: 'Sistema de pedidos via WhatsApp',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1', // v1.0.1 - cache bust
+  description: 'Sistema de pedidos via WhatsApp - v1.0.2',
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({
