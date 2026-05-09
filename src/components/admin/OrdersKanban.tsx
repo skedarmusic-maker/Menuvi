@@ -37,7 +37,7 @@ interface Order {
   pix_confirmed: boolean;
   pix_receipt_url: string | null;
   order_items: OrderItem[];
-  driver_id: string | null;
+  delivery_person_id: string | null;
   customer_id: string | null;
 }
 
@@ -62,8 +62,15 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
   // Busca entregadores
   useEffect(() => {
      async function loadDrivers() {
-        const { data } = await supabase.from('drivers').select('*').eq('is_active', true);
-        setDrivers(data || []);
+        // Busca o restaurante primeiro para filtrar
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: rest } = await supabase.from('restaurants').select('id').eq('user_id', user.id).single();
+          if (rest) {
+            const { data } = await supabase.from('delivery_people').select('*').eq('restaurant_id', rest.id).eq('is_active', true);
+            setDrivers(data || []);
+          }
+        }
      }
      loadDrivers();
   }, [supabase]);
@@ -187,10 +194,10 @@ export default function OrdersKanban({ initialOrders }: { initialOrders: Order[]
     }
   };
 
-  const assignDriver = async (orderId: string, driverId: string) => {
-    const { error } = await supabase.from('orders').update({ driver_id: driverId }).eq('id', orderId);
+  const assignDriver = async (orderId: string, deliveryPersonId: string) => {
+    const { error } = await supabase.from('orders').update({ delivery_person_id: deliveryPersonId }).eq('id', orderId);
     if (!error) {
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, driver_id: driverId } : o));
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, delivery_person_id: deliveryPersonId } : o));
     }
   };
 
@@ -457,7 +464,7 @@ function OrderCard({ order, isExpanded, onToggle, onTogglePix, onAdvance, onCanc
                 <Truck className="w-3 h-3" /> Entregador
              </label>
              <select 
-               value={order.driver_id || ''} 
+               value={order.delivery_person_id || ''} 
                onChange={(e) => onAssignDriver(e.target.value)}
                className="w-full bg-gray-800 border border-gray-700 rounded-xl px-3 py-2 text-xs text-white outline-none focus:ring-2 focus:ring-orange-500/20"
              >
