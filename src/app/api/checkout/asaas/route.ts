@@ -45,7 +45,10 @@ export async function POST(req: NextRequest) {
     const split = undefined;
 
     // 4. Criar o Pagamento no Asaas
-    const today = new Date().toISOString().split('T')[0];
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dueDate = tomorrow.toISOString().split('T')[0];
+    
     const isCreditCard = paymentMethod === 'online_credit_card';
     const asaasBillingType = isCreditCard ? 'CREDIT_CARD' : 'PIX';
 
@@ -77,7 +80,7 @@ export async function POST(req: NextRequest) {
       customer: asaasCustomer.id,
       billingType: asaasBillingType,
       value: totalAmount,
-      dueDate: today,
+      dueDate: dueDate,
       description: `Pedido #${orderId.slice(0, 8)} - ${restaurant.name}`,
       externalReference: orderId,
       split: split,
