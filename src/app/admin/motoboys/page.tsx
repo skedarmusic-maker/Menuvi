@@ -64,10 +64,10 @@ export default function MotoboysPage() {
     <div className="p-8 max-w-4xl mx-auto">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
+          <h1 className="text-2xl font-black text-white flex items-center gap-2">
             <Bike className="w-8 h-8 text-orange-500" /> Motoboys
           </h1>
-          <p className="text-gray-500">Gerencie quem faz as suas entregas.</p>
+          <p className="text-gray-400">Gerencie quem faz as suas entregas.</p>
         </div>
         <button 
           onClick={() => setIsAdding(true)}
@@ -79,15 +79,15 @@ export default function MotoboysPage() {
 
       {isAdding && (
         <div className="bg-white border-2 border-orange-500/20 p-6 rounded-3xl mb-8 shadow-sm animate-in slide-in-from-top-2">
-          <h3 className="font-bold mb-4">Novo Cadastro</h3>
+          <h3 className="font-bold mb-4 text-gray-900">Novo Cadastro</h3>
           <div className="grid grid-cols-2 gap-4">
             <input 
               type="text" placeholder="Nome do Motoboy" value={newName} onChange={e => setNewName(e.target.value)}
-              className="bg-gray-50 border p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+              className="bg-gray-50 border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-gray-900 placeholder:text-gray-400"
             />
             <input 
-              type="tel" placeholder="WhatsApp (DDD + Número)" value={newPhone} onChange={e => setNewPhone(e.target.value)}
-              className="bg-gray-50 border p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none"
+              type="tel" placeholder="WhatsApp" value={newPhone} onChange={e => setNewPhone(e.target.value)}
+              className="bg-gray-50 border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-gray-900 placeholder:text-gray-400"
             />
           </div>
           <div className="flex justify-end gap-3 mt-4">
@@ -99,17 +99,17 @@ export default function MotoboysPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {motoboys.map(motoboy => (
-          <div key={motoboy.id} className="bg-white border p-5 rounded-3xl flex justify-between items-center group hover:border-orange-500/30 transition-all">
+          <div key={motoboy.id} className="bg-gray-900 border border-gray-800 p-5 rounded-3xl flex justify-between items-center group hover:border-orange-500/30 transition-all">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center">
-                <User className="text-gray-400" />
+              <div className="w-12 h-12 bg-gray-800 rounded-2xl flex items-center justify-center">
+                <User className="text-gray-500" />
               </div>
               <div>
-                <h4 className="font-bold text-gray-900">{motoboy.name}</h4>
-                <p className="text-gray-500 text-xs flex items-center gap-1"><Phone className="w-3 h-3" /> {motoboy.phone || 'Sem telefone'}</p>
+                <h4 className="font-bold text-white">{motoboy.name}</h4>
+                <p className="text-gray-400 text-xs flex items-center gap-1"><Phone className="w-3 h-3" /> {motoboy.phone || 'Sem telefone'}</p>
               </div>
             </div>
-            <button onClick={() => handleDelete(motoboy.id)} className="p-2 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={() => handleDelete(motoboy.id)} className="p-2 text-gray-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
               <Trash2 className="w-5 h-5" />
             </button>
           </div>
