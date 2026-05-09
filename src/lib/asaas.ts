@@ -1,6 +1,6 @@
 export async function createAsaasCustomer(name: string, phone: string, cpfCnpj: string) {
-  const apiKey = process.env.ASAAS_API_KEY;
-  const apiUrl = process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3';
+  const apiKey = process.env.ASAAS_API_KEY?.trim();
+  const apiUrl = (process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3').trim();
   
   const maskedKey = apiKey ? `${apiKey.substring(0, 10)}... (Total: ${apiKey.length} chars)` : 'UNDEFINED';
   console.log('🚀 [Asaas API] URL:', apiUrl);
@@ -43,8 +43,8 @@ export async function createAsaasPayment(data: {
   creditCard?: any;
   creditCardHolderInfo?: any;
 }) {
-  const apiKey = process.env.ASAAS_API_KEY;
-  const apiUrl = process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3';
+  const apiKey = process.env.ASAAS_API_KEY?.trim();
+  const apiUrl = (process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3').trim();
 
   const response = await fetch(`${apiUrl}/payments`, {
     method: 'POST',
@@ -65,8 +65,8 @@ export async function createAsaasPayment(data: {
 }
 
 export async function getAsaasPixQrCode(paymentId: string) {
-  const apiKey = process.env.ASAAS_API_KEY;
-  const apiUrl = process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3';
+  const apiKey = process.env.ASAAS_API_KEY?.trim();
+  const apiUrl = (process.env.ASAAS_API_URL || 'https://sandbox.asaas.com/api/v3').trim();
 
   const response = await fetch(`${apiUrl}/payments/${paymentId}/pixQrCode`, {
     method: 'GET',
