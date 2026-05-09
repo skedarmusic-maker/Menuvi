@@ -104,13 +104,20 @@ export async function POST(req: NextRequest) {
       // Retorna o link de pagamento do Asaas
       responsePayload.invoiceUrl = payment.invoiceUrl;
     } else {
-      // 5.1 Buscar o QR Code do Pix
-      const pixData = await getAsaasPixQrCode(payment.id);
-      responsePayload.qrCode = pixData.encodedImage;
-      responsePayload.pixCode = pixData.payload;
-      
-      updateData.payment_qr_code = pixData.encodedImage;
-      updateData.payment_qr_code_text = pixData.payload;
+      // 5.1 Buscar o QR Code do Pix (Tentativa)
+      try {
+        const pixData = await getAsaasPixQrCode(payment.id);
+        responsePayload.qrCode = pixData.encodedImage;
+        responsePayload.pixCode = pixData.payload;
+        
+        updateData.payment_qr_code = pixData.encodedImage;
+        updateData.payment_qr_code_text = pixData.payload;
+      } catch (pixErr) {
+        console.error('⚠️ [Asaas] Falha ao gerar QR Code, usando InvoiceUrl como fallback');
+        // Se falhar o QR Code direto, mandamos o InvoiceUrl para o cliente não ficar na mão
+        responsePayload.invoiceUrl = payment.invoiceUrl;
+        responsePayload.pixError = true;
+      }
     }
 
     await supabaseAdmin

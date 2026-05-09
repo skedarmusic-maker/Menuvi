@@ -43,7 +43,7 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
   const [userId, setUserId] = useState<string | null>(null);
   const [savedProfile, setSavedProfile] = useState<any>(null);
   const [useSavedAddress, setUseSavedAddress] = useState(false);
-  const [pixData, setPixData] = useState<{ qrCode: string; pixCode: string; paymentId: string } | null>(null);
+  const [pixData, setPixData] = useState<{ qrCode?: string; pixCode?: string; paymentId: string; invoiceUrl?: string; pixError?: boolean } | null>(null);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
 
@@ -558,20 +558,36 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
               {/* Se for PIX Online, mostra o QR Code */}
               {pixData ? (
                 <div className="w-full space-y-6 animate-in slide-in-from-bottom-4 duration-500 delay-200">
-                  <div className="bg-white border-2 border-gray-100 p-5 rounded-[2.5rem] shadow-sm max-w-[240px] mx-auto">
-                    <img src={`data:image/png;base64,${pixData.qrCode}`} alt="QR Code Pix" className="w-full h-full" />
-                  </div>
+                  {pixData.qrCode ? (
+                    <div className="bg-white border-2 border-gray-100 p-5 rounded-[2.5rem] shadow-sm max-w-[240px] mx-auto">
+                      <img src={`data:image/png;base64,${pixData.qrCode}`} alt="QR Code Pix" className="w-full h-full" />
+                    </div>
+                  ) : (
+                    <div className="bg-orange-50 border border-orange-100 p-6 rounded-3xl text-center">
+                      <p className="text-orange-800 text-sm font-bold mb-4">Pagamento Gerado!</p>
+                      <a 
+                        href={pixData.invoiceUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 bg-orange-500 text-white font-black px-6 py-3 rounded-xl shadow-lg shadow-orange-500/20"
+                      >
+                        Abrir Página de Pagamento
+                      </a>
+                    </div>
+                  )}
 
                   <div className="space-y-4">
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(pixData.pixCode);
-                        alert('Código Copiado!');
-                      }}
-                      className="w-full bg-gray-100 text-gray-900 font-bold py-4 rounded-2xl flex items-center justify-center gap-2"
-                    >
-                      Copiar Código Copia e Cola
-                    </button>
+                    {pixData.pixCode && (
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(pixData.pixCode!);
+                          alert('Código Copiado!');
+                        }}
+                        className="w-full bg-gray-100 text-gray-900 font-bold py-4 rounded-2xl flex items-center justify-center gap-2"
+                      >
+                        Copiar Código Copia e Cola
+                      </button>
+                    )}
 
                     <Link 
                       href={`/order-status/${createdOrderId}`}

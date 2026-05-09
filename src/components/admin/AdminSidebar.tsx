@@ -11,11 +11,13 @@ import {
   LogOut,
   ExternalLink,
   Power,
+  Bike,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin', label: 'Pedidos', icon: LayoutDashboard },
   { href: '/admin/menu', label: 'Cardápio', icon: UtensilsCrossed },
+  { href: '/admin/motoboys', label: 'Motoboys', icon: Bike },
   { href: '/admin/analytics', label: 'Relatórios', icon: BarChart3 },
   { href: '/admin/settings', label: 'Configurações', icon: Settings },
 ];
