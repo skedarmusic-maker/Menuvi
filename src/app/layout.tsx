@@ -6,8 +6,9 @@ import "./globals.css";
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "Menuvi - Cardápio Digital Premium",
-  description: "Crie seu cardápio digital e receba pedidos pelo WhatsApp",
+  title: 'Menuvi - Cardápio Digital Premium',
+  description: 'Sistema de pedidos via WhatsApp',
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=1', // v1.0.1 - cache bust
 };
 
 export default function RootLayout({
