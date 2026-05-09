@@ -328,8 +328,8 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                 />
                 <input
-                  type="text" value={customerCpf} onChange={(e) => setCustomerCpf(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                  placeholder="Seu CPF (Apenas números)"
+                  type="text" value={customerCpf} onChange={(e) => setCustomerCpf(e.target.value.replace(/\D/g, '').slice(0, 14))}
+                  placeholder="Seu CPF ou CNPJ (Apenas números)"
                   className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200"
                 />
               </div>

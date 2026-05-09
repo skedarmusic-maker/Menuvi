@@ -15,7 +15,7 @@ export async function createAsaasCustomer(name: string, phone: string, cpfCnpj: 
     body: JSON.stringify({
       name,
       mobilePhone: phone,
-      cpfCnpj,
+      cpfCnpj: cpfCnpj.replace(/\D/g, ''),
     }),
   });
 
