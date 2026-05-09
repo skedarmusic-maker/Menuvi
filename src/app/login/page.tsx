@@ -16,6 +16,12 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      setError('Erro de Configuração: As chaves do banco de dados (Supabase) não foram encontradas no servidor Hostinger. Verifique as variáveis de ambiente.');
+      return;
+    }
+
     setLoading(true);
 
     const supabase = createSupabaseBrowserClient();
