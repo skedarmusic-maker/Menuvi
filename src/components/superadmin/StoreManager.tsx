@@ -1,13 +1,22 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { Plus, X, Search, MoreVertical, Loader2, Calendar, MapPin } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { createSupabaseBrowserClient } from '@/lib/supabase-client';
+import { Plus, X, Search, Loader2, Calendar, MapPin } from 'lucide-react';
 
-export default function StoreManager({ initialStores }: { initialStores: any[] }) {
-  const router = useRouter();
-  const [stores, setStores] = useState(initialStores);
+interface Store {
+  id: string;
+  name: string;
+  slug: string;
+  whatsapp_number: string;
+  expires_at: string;
+  has_distance_delivery: boolean;
+  is_active: boolean;
+}
+
+export default function StoreManager({ initialStores }: { initialStores: Store[] }) {
+  const supabase = createSupabaseBrowserClient();
+  const [stores, setStores] = useState<Store[]>(initialStores);
   const [search, setSearch] = useState('');
   const [openModal, setOpenModal] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -55,8 +64,12 @@ export default function StoreManager({ initialStores }: { initialStores: any[] }
       alert('Loja criada e usuário liberado com sucesso!');
       setOpenModal(false);
       window.location.reload();
-    } catch (err: any) {
-      alert(err.message);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        alert(err.message);
+      } else {
+        alert(String(err));
+      }
     } finally {
       setLoading(false);
     }

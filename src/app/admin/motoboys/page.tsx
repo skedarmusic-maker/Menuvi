@@ -69,7 +69,7 @@ export default function MotoboysPage() {
           </h1>
           <p className="text-gray-400">Gerencie quem faz as suas entregas.</p>
         </div>
-        <button 
+        <button
           onClick={() => setIsAdding(true)}
           className="bg-orange-500 text-white font-bold px-6 py-2 rounded-xl flex items-center gap-2 hover:bg-orange-600 transition-colors"
         >
@@ -81,11 +81,11 @@ export default function MotoboysPage() {
         <div className="bg-white border-2 border-orange-500/20 p-6 rounded-3xl mb-8 shadow-sm animate-in slide-in-from-top-2">
           <h3 className="font-bold mb-4 text-gray-900">Novo Cadastro</h3>
           <div className="grid grid-cols-2 gap-4">
-            <input 
+            <input
               type="text" placeholder="Nome do Motoboy" value={newName} onChange={e => setNewName(e.target.value)}
               className="bg-gray-50 border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-gray-900 placeholder:text-gray-400"
             />
-            <input 
+            <input
               type="tel" placeholder="WhatsApp" value={newPhone} onChange={e => setNewPhone(e.target.value)}
               className="bg-gray-50 border border-gray-200 p-3 rounded-xl focus:ring-2 focus:ring-orange-500 outline-none text-gray-900 placeholder:text-gray-400"
             />
