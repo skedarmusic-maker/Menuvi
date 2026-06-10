@@ -12,11 +12,13 @@ import {
   ExternalLink,
   Power,
   Bike,
+  Ticket,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin', label: 'Pedidos', icon: LayoutDashboard },
   { href: '/admin/menu', label: 'Cardápio', icon: UtensilsCrossed },
+  { href: '/admin/coupons', label: 'Cupons', icon: Ticket },
   { href: '/admin/motoboys', label: 'Motoboys', icon: Bike },
   { href: '/admin/analytics', label: 'Relatórios', icon: BarChart3 },
   { href: '/admin/settings', label: 'Configurações', icon: Settings },

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCart } from '@/context/CartContext';
-import { X, Trash2, MapPin, Phone, User, CreditCard, ChevronRight, Pencil, RotateCcw, CheckCircle } from 'lucide-react';
+import { X, Trash2, MapPin, Phone, User, CreditCard, ChevronRight, Pencil, RotateCcw, CheckCircle, Ticket } from 'lucide-react';
 import { calculateDeliveryDistance, getDeliveryFee } from '@/lib/delivery';
 import { createSupabaseBrowserClient } from '@/lib/supabase-client';
 import Link from 'next/link';
@@ -46,6 +46,12 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
   const [pixData, setPixData] = useState<{ qrCode?: string; pixCode?: string; paymentId: string; invoiceUrl?: string; pixError?: boolean } | null>(null);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+
+  // Coupon states
+  const [couponCodeInput, setCouponCodeInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; type: 'percentage' | 'fixed'; value: number } | null>(null);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   useEffect(() => {
     async function checkUser() {
@@ -95,7 +101,25 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
     checkUser();
   }, [isOpen, store.has_distance_delivery]);
 
-  const totalPriceWithDelivery = cartTotal + (deliveryFee || 0);
+  // Reset coupon if phone changes to avoid bypass
+  useEffect(() => {
+    if (appliedCoupon) {
+      setAppliedCoupon(null);
+      setCouponError('O telefone foi alterado. Por favor, revalide seu cupom.');
+    }
+  }, [customerPhone]);
+
+  const getDiscountAmount = () => {
+    if (!appliedCoupon) return 0;
+    if (appliedCoupon.type === 'percentage') {
+      return (cartTotal * appliedCoupon.value) / 100;
+    } else {
+      return Math.min(appliedCoupon.value, cartTotal);
+    }
+  };
+
+  const discountAmount = getDiscountAmount();
+  const totalPriceWithDelivery = Math.max(0, cartTotal - discountAmount + (deliveryFee || 0));
 
   const handleCepBlur = async () => {
     // Só calcula se o SuperAdmin habilitou o recurso para esta loja
@@ -114,6 +138,42 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
       } finally {
         setCalculatingFee(false);
       }
+    }
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCodeInput.trim()) return;
+    if (!customerPhone) {
+      setCouponError('Insira seu telefone primeiro para validar o cupom.');
+      return;
+    }
+    
+    setValidatingCoupon(true);
+    setCouponError(null);
+    
+    try {
+      const response = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: couponCodeInput,
+          restaurantId: store.id,
+          phone: customerPhone
+        })
+      });
+      
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao validar cupom.');
+      }
+      
+      setAppliedCoupon(data.coupon);
+      setCouponError(null);
+    } catch (err: any) {
+      setAppliedCoupon(null);
+      setCouponError(err.message || 'Cupom inválido.');
+    } finally {
+      setValidatingCoupon(false);
     }
   };
 
@@ -154,7 +214,9 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
           total_amount: totalPriceWithDelivery,
           payment_method: paymentMethod,
           customer_id: userId,
-          status: 'new'
+          status: 'new',
+          coupon_code: appliedCoupon ? appliedCoupon.code : null,
+          discount_amount: discountAmount
         })
         .select()
         .single();
@@ -429,6 +491,51 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
                 )}
               </div>
 
+              {/* CUPOM DE DESCONTO */}
+              <div className="space-y-3 bg-gray-50 p-5 rounded-3xl border border-gray-100">
+                <h3 className="font-bold text-gray-900 flex items-center gap-2"><Ticket className="w-4 h-4" /> Cupom de Desconto</h3>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Digite o cupom (Ex: IFOOD15)"
+                    value={couponCodeInput}
+                    onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase().trim())}
+                    disabled={!!appliedCoupon}
+                    className="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200 uppercase placeholder:normal-case font-mono"
+                  />
+                  {appliedCoupon ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAppliedCoupon(null);
+                        setCouponCodeInput('');
+                      }}
+                      className="bg-red-500 text-white font-bold px-4 py-3 rounded-xl text-sm hover:bg-red-600 transition-colors"
+                    >
+                      Remover
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={validatingCoupon || !couponCodeInput}
+                      className="bg-gray-950 text-white font-bold px-5 py-3 rounded-xl text-sm disabled:opacity-50 hover:bg-gray-900 transition-colors"
+                    >
+                      {validatingCoupon ? 'Validando...' : 'Aplicar'}
+                    </button>
+                  )}
+                </div>
+                {couponError && <p className="text-xs text-red-500 font-bold px-1">{couponError}</p>}
+                {appliedCoupon && (
+                  <p className="text-xs text-green-600 font-bold px-1 flex items-center gap-1">
+                    ✓ Cupom <strong>{appliedCoupon.code}</strong> aplicado: -
+                    {appliedCoupon.type === 'percentage' 
+                      ? `${appliedCoupon.value}%` 
+                      : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(appliedCoupon.value)} de desconto!
+                  </p>
+                )}
+              </div>
+
               <div className="space-y-6 pb-8">
                 <h3 className="font-bold text-gray-900 flex items-center gap-2"><CreditCard className="w-4 h-4" /> Forma de Pagamento</h3>
                 
@@ -622,10 +729,35 @@ export default function CartSheet({ isOpen, onClose, store, onEditItem }: CartSh
         {/* RODAPÉ FIXO */}
         {cart.length > 0 && (
           <div className="p-6 border-t bg-white sticky bottom-0">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-gray-500 font-medium">Total do Pedido</span>
-              <h3 className="font-bold text-gray-900">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPriceWithDelivery)}</h3>
-            </div>
+            {step === 'items' ? (
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-gray-500 font-medium">Total do Pedido</span>
+                <h3 className="font-bold text-gray-900">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPriceWithDelivery)}</h3>
+              </div>
+            ) : (
+              <div className="space-y-1.5 mb-4">
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span>Subtotal</span>
+                  <span>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(cartTotal)}</span>
+                </div>
+                {discountAmount > 0 && (
+                  <div className="flex items-center justify-between text-xs text-green-600 font-bold">
+                    <span>Desconto ({appliedCoupon?.code})</span>
+                    <span>-{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(discountAmount)}</span>
+                  </div>
+                )}
+                {deliveryFee !== null && (
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>Taxa de Entrega</span>
+                    <span>{deliveryFee === 0 ? 'Grátis' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(deliveryFee)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <span className="text-gray-900 font-bold">Total</span>
+                  <h3 className="font-black text-xl text-gray-900">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalPriceWithDelivery)}</h3>
+                </div>
+              </div>
+            )}
             {step === 'items' ? (
               <button
                 onClick={() => setStep('checkout')}
