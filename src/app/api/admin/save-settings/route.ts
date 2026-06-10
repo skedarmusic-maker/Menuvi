@@ -52,15 +52,9 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Update with service role (bypasses RLS)
-    // NOTE: Remove fields that don't exist in the DB yet to prevent errors.
-    // To add working_hours: run in Supabase SQL Editor:
-    // ALTER TABLE public.restaurants ADD COLUMN IF NOT EXISTS working_hours jsonb;
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { working_hours, ...safeUpdateData } = updateData;
-
     const { error: updateError } = await supabaseAdmin
       .from('restaurants')
-      .update(safeUpdateData)
+      .update(updateData)
       .eq('id', restaurantId);
 
     if (updateError) {
