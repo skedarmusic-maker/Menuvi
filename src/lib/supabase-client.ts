@@ -1,13 +1,21 @@
 import { createBrowserClient } from '@supabase/ssr';
 
-export const createSupabaseBrowserClient = () => {
-  let url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  let key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+interface CustomWindow extends Window {
+  __NEXT_PUBLIC_SUPABASE_URL?: string;
+  __NEXT_PUBLIC_SUPABASE_ANON_KEY?: string;
+}
 
-  // Se estiver vazio (problema de build na Hostinger), tentamos um fallback
-  // Nota: Em um mundo ideal o build deveria ter as chaves, mas aqui é emergência
+export const createSupabaseBrowserClient = () => {
+  // Try to get from window injected by server layout first to bypass build-time env injection issues on Hostinger
+  const customWindow = typeof window !== 'undefined' ? (window as CustomWindow) : null;
+  const injectedUrl = customWindow?.__NEXT_PUBLIC_SUPABASE_URL;
+  const injectedKey = customWindow?.__NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  const url = injectedUrl || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = injectedKey || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
   if (!url || !key) {
-    console.warn('⚠️ [Supabase] Chaves não encontradas no build. O login pode falhar se não houver cookies ativos.');
+    console.warn('⚠️ [Supabase] Chaves não encontradas no build ou no window.');
   }
   
   return createBrowserClient(
