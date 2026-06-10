@@ -17,7 +17,36 @@ const THEME_COLORS = [
   { label: 'Rosa', value: '#ec4899' },
 ];
 
-export default function SettingsForm({ restaurant }: { restaurant: any }) {
+interface WorkingHour {
+  day: string;
+  isOpen: boolean;
+  open: string;
+  close: string;
+}
+
+interface Restaurant {
+  id: string;
+  name: string;
+  slug: string;
+  whatsapp_number: string;
+  theme_color: string;
+  logo_url: string;
+  banner_url: string;
+  address: string;
+  opening_hours: string;
+  payment_methods: string;
+  cep: string;
+  has_distance_delivery: boolean;
+  delivery_rules: object[];
+  working_hours: WorkingHour[] | null;
+  accepts_online_pix: boolean;
+  accepts_online_credit_card: boolean;
+  accepts_delivery_pix: boolean;
+  accepts_delivery_cash: boolean;
+  accepts_delivery_card: boolean;
+}
+
+export default function SettingsForm({ restaurant }: { restaurant: Restaurant }) {
   const supabase = createSupabaseBrowserClient();
   const [name, setName] = useState(restaurant.name || '');
   const [whatsapp, setWhatsapp] = useState(
@@ -61,6 +90,7 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'banner') => {
     const file = e.target.files?.[0];
@@ -85,8 +115,9 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
       if (type === 'logo') setLogoUrl(publicUrl);
       else setBannerUrl(publicUrl);
 
-    } catch (error: any) {
-      alert('Erro ao subir imagem: ' + error.message);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Erro desconhecido';
+      alert('Erro ao subir imagem: ' + msg);
     } finally {
       setUploading(null);
     }
@@ -96,34 +127,49 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
     e.preventDefault();
     setSaving(true);
     setSuccess(false);
+    setSaveError('');
 
-    const { error } = await supabase
-      .from('restaurants')
-      .update({
-        name,
-        whatsapp_number: `55${whatsapp.replace(/\D/g, '')}`,
-        theme_color: themeColor,
-        logo_url: logoUrl,
-        banner_url: bannerUrl,
-        address,
-        opening_hours: openingHours,
-        working_hours: workingHours, // Salvando o JSON estruturado
-        payment_methods: paymentMethods,
-        cep,
-        has_distance_delivery: hasDistanceDelivery,
-        delivery_rules: deliveryRules,
-        accepts_online_pix: acceptsOnlinePix,
-        accepts_online_credit_card: acceptsOnlineCredit,
-        accepts_delivery_pix: acceptsDeliveryPix,
-        accepts_delivery_cash: acceptsDeliveryCash,
-        accepts_delivery_card: acceptsDeliveryCard,
-      })
-      .eq('id', restaurant.id);
+    try {
+      const response = await fetch('/api/admin/save-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restaurantId: restaurant.id,
+          name,
+          whatsapp_number: `55${whatsapp.replace(/\D/g, '')}`,
+          theme_color: themeColor,
+          logo_url: logoUrl,
+          banner_url: bannerUrl,
+          address,
+          opening_hours: openingHours,
+          working_hours: workingHours,
+          payment_methods: paymentMethods,
+          cep,
+          has_distance_delivery: hasDistanceDelivery,
+          delivery_rules: deliveryRules,
+          accepts_online_pix: acceptsOnlinePix,
+          accepts_online_credit_card: acceptsOnlineCredit,
+          accepts_delivery_pix: acceptsDeliveryPix,
+          accepts_delivery_cash: acceptsDeliveryCash,
+          accepts_delivery_card: acceptsDeliveryCard,
+        }),
+      });
 
-    setSaving(false);
-    if (!error) {
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.error('[SettingsForm] Erro ao salvar:', result);
+        setSaveError(result.error || 'Erro desconhecido ao salvar.');
+      } else {
+        setSuccess(true);
+        setTimeout(() => setSuccess(false), 4000);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Erro de rede.';
+      console.error('[SettingsForm] Exceção ao salvar:', msg);
+      setSaveError(msg);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -258,7 +304,7 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
         </div>
 
         <div className="space-y-3">
-          {workingHours.map((wh: any, index: number) => (
+          {(workingHours as WorkingHour[]).map((wh, index) => (
             <div key={wh.day} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-800/30 rounded-2xl border border-gray-700/30 gap-4 transition-all hover:border-gray-600">
               <div className="flex items-center gap-3">
                 <button
@@ -565,17 +611,25 @@ export default function SettingsForm({ restaurant }: { restaurant: any }) {
       </div>
 
       {/* Salvar */}
-      <div className="flex items-center gap-4 pt-2">
-        <button
-          type="submit"
-          disabled={saving}
-          className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white bg-orange-500 hover:bg-orange-400 disabled:opacity-50 transition-all"
-        >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {saving ? 'Salvando...' : 'Salvar Alterações'}
-        </button>
-        {success && (
-          <span className="text-green-400 text-sm font-bold animate-in fade-in">✅ Salvo com sucesso!</span>
+      <div className="flex flex-col gap-3 pt-2">
+        <div className="flex items-center gap-4">
+          <button
+            type="submit"
+            disabled={saving}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white bg-orange-500 hover:bg-orange-400 disabled:opacity-50 transition-all"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {saving ? 'Salvando...' : 'Salvar Alterações'}
+          </button>
+          {success && (
+            <span className="text-green-400 text-sm font-bold animate-in fade-in">✅ Salvo com sucesso!</span>
+          )}
+        </div>
+        {saveError && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3">
+            <p className="text-red-400 text-sm font-bold">❌ Erro ao salvar: {saveError}</p>
+            <p className="text-red-400/70 text-xs mt-1">Verifique o console do navegador (F12) para mais detalhes.</p>
+          </div>
         )}
       </div>
     </form>
